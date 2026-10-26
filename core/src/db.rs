@@ -54,7 +54,7 @@ pub struct BookmarkItem {
     pub created_at: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SubtitleTrack {
     pub label: String,
     #[serde(default)]
@@ -64,7 +64,7 @@ pub struct SubtitleTrack {
     pub default: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SkipInterval {
     #[serde(default)]
     pub start: f64,

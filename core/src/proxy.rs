@@ -118,8 +118,8 @@ pub async fn proxy_video_handler(Query(params): Query<VideoProxyParams>) -> Resp
         match send_desync_http_get(&url, &headers, Duration::from_secs(10)).await {
             Ok(bytes) => {
                 if is_m3u8(&url) {
-                    if let Ok(txt) = String::from_utf8(bytes) {
-                        let rewritten = rewrite_m3u8(&txt, &url, &referer);
+                    if let Ok(txt) = std::str::from_utf8(&bytes) {
+                        let rewritten = rewrite_m3u8(txt, &url, &referer);
                         return (
                             StatusCode::OK,
                             [
