@@ -8,7 +8,7 @@ import android.net.Uri
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
-import androidx.annotation.OptIn
+import kotlin.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -230,13 +230,10 @@ fun PlayerScreen(
             val progressPercent = ((currentPosition * 100) / duration).toInt()
             scope.launch {
                 ApiClient.saveProgress(
-                    WatchProgressItem(
-                        slug = anime.slug,
-                        episode = currentEpisode,
-                        progress = progressPercent,
-                        position = currentPosition,
-                        duration = duration
-                    )
+                    slug = anime.slug,
+                    episode = currentEpisode,
+                    progress = progressPercent,
+                    duration = (duration / 1000).toInt()
                 )
             }
         }

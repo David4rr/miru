@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,7 @@ import id.tatap.app.data.AnimeCard
 import id.tatap.app.data.ApiClient
 import id.tatap.app.data.BookmarkItem
 import id.tatap.app.data.WatchHistoryItem
+import id.tatap.app.ui.components.OrangeButton
 import id.tatap.app.ui.components.SectionHeader
 import id.tatap.app.ui.theme.CrunchyOrange
 import id.tatap.app.ui.theme.DarkBackground
