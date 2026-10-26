@@ -141,6 +141,23 @@ pub async fn query_anilist(query: &str, variables: Value) -> Result<Value> {
     Ok(json_val)
 }
 
+pub async fn get_mal_id_by_anilist_id(anilist_id: i64) -> Result<Option<i64>> {
+    const QUERY: &str = r#"
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        idMal
+      }
+    }
+    "#;
+    let variables = json!({ "id": anilist_id });
+    let val = query_anilist(QUERY, variables).await?;
+    let id_mal = val.get("data")
+        .and_then(|d| d.get("Media"))
+        .and_then(|m| m.get("idMal"))
+        .and_then(|v| v.as_i64());
+    Ok(id_mal)
+}
+
 const HOME_QUERY: &str = r#"
 query HomeCatalog($season: MediaSeason, $year: Int) {
   trending: Page(page: 1, perPage: 10) {

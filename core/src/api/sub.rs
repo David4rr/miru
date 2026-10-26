@@ -92,46 +92,70 @@ pub async fn get_or_translate_vtt(
         return Ok(cached_vtt);
     }
 
-    // 2. Fetch original WebVTT from upstream
-    let raw_vtt = HTTP_CLIENT.get(url).send().await?.text().await?;
+    // 2. Fetch original WebVTT from upstream with spoofed referer
+    let mut req = HTTP_CLIENT.get(url).header("User-Agent", "Mozilla/5.0");
+    if url.contains("dramahot") || url.contains("zokoanime") || url.contains("drama") {
+        req = req.header("Referer", "https://zokoanime.video/");
+    }
+    let raw_vtt = req.send().await?.text().await?;
 
     if mode == "raw" || !mode.contains("gtx") {
         let _ = db.set_subtitle_cache(&cache_key, &raw_vtt);
         return Ok(raw_vtt);
     }
 
-    // 3. Parse WebVTT cues and translate dialogue lines
-    let mut translated_lines = Vec::new();
+    // 3. Fast batched translation: collect dialogue lines
+    let lines: Vec<&str> = raw_vtt.lines().collect();
     let mut is_in_cue = false;
+    let mut cue_indices = Vec::new();
+    let mut cue_texts = Vec::new();
 
-    for line in raw_vtt.lines() {
+    for (idx, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
-
         if trimmed.starts_with("WEBVTT") || trimmed.starts_with("NOTE") || trimmed.is_empty() {
-            translated_lines.push(line.to_string());
             is_in_cue = false;
             continue;
         }
-
-        // Timestamp line: 00:01:23.456 --> 00:01:25.789
         if trimmed.contains("-->") {
-            translated_lines.push(line.to_string());
             is_in_cue = true;
             continue;
         }
-
         if is_in_cue && !trimmed.is_empty() {
-            // Translate cue text
-            let translated = translate_gtx_text(trimmed, "en", "id").await.unwrap_or_else(|_| trimmed.to_string());
-            translated_lines.push(translated);
-        } else {
-            translated_lines.push(line.to_string());
+            cue_indices.push(idx);
+            cue_texts.push(trimmed.to_string());
         }
     }
 
-    let result_vtt = translated_lines.join("\n");
-    let _ = db.set_subtitle_cache(&cache_key, &result_vtt);
+    if cue_texts.is_empty() {
+        let _ = db.set_subtitle_cache(&cache_key, &raw_vtt);
+        return Ok(raw_vtt);
+    }
 
+    // Batch translate in blocks of 30 cues
+    let mut translated_map: std::collections::HashMap<usize, String> = std::collections::HashMap::new();
+    for chunk in cue_indices.chunks(30) {
+        let combined_text: Vec<String> = chunk.iter().map(|&i| lines[i].trim().to_string()).collect();
+        let joined = combined_text.join(" ~~~ ");
+        if let Ok(translated_joined) = translate_gtx_text(&joined, "en", "id").await {
+            let parts: Vec<&str> = translated_joined.split("~~~").collect();
+            for (i, &line_idx) in chunk.iter().enumerate() {
+                let translated_part = parts.get(i).map(|s| s.trim().to_string()).unwrap_or_else(|| lines[line_idx].to_string());
+                translated_map.insert(line_idx, translated_part);
+            }
+        }
+    }
+
+    let mut result_lines = Vec::with_capacity(lines.len());
+    for (idx, line) in lines.iter().enumerate() {
+        if let Some(tr) = translated_map.get(&idx) {
+            result_lines.push(tr.clone());
+        } else {
+            result_lines.push(line.to_string());
+        }
+    }
+
+    let result_vtt = result_lines.join("\n");
+    let _ = db.set_subtitle_cache(&cache_key, &result_vtt);
     Ok(result_vtt)
 }
 

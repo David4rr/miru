@@ -125,7 +125,10 @@ object ApiClient {
                         start = outroObj?.optDouble("start") ?: 0.0,
                         end = outroObj?.optDouble("end") ?: 0.0
                     ),
-                    proxiedMasterUrl = "$BASE_URL${data.optString("proxied_master_url")}"
+                    proxiedMasterUrl = run {
+                        val raw = data.optString("proxied_master_url")
+                        if (raw.startsWith("http://") || raw.startsWith("https://")) raw else "$BASE_URL$raw"
+                    }
                 )
             }
         }

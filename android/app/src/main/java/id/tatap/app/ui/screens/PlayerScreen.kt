@@ -82,6 +82,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import id.tatap.app.data.AnimeCard
@@ -146,11 +147,22 @@ fun PlayerScreen(
         }
     }
 
-    // Build ExoPlayer instance
+    // Build ExoPlayer instance with fast low-latency playback buffering
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-        }
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 2500,
+                /* maxBufferMs = */ 30000,
+                /* bufferForPlaybackMs = */ 500,
+                /* bufferForPlaybackAfterRebufferMs = */ 1000
+            )
+            .build()
+
+        ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .build().apply {
+                playWhenReady = true
+            }
     }
 
     // Save watch progress to local daemon helper
@@ -191,16 +203,16 @@ fun PlayerScreen(
                         .setUri(res.proxiedMasterUrl)
                         .setMimeType(MimeTypes.APPLICATION_M3U8)
 
-                    // Add default Indonesian Subtitle if available
+                    // Add subtitles without blocking video playback initialization
                     if (res.subtitles.isNotEmpty()) {
-                        val subTrack = res.subtitles.firstOrNull { it.default } ?: res.subtitles.first()
-                        val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(subTrack.url))
-                            .setMimeType(MimeTypes.TEXT_VTT)
-                            .setLanguage(subTrack.lang)
-                            .setLabel(subTrack.label)
-                            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-                            .build()
-                        mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
+                        val subtitleConfigs = res.subtitles.map { subTrack ->
+                            MediaItem.SubtitleConfiguration.Builder(Uri.parse(subTrack.url))
+                                .setMimeType(MimeTypes.TEXT_VTT)
+                                .setLanguage(subTrack.lang)
+                                .setLabel(subTrack.label)
+                                .build()
+                        }
+                        mediaItemBuilder.setSubtitleConfigurations(subtitleConfigs)
                     }
 
                     exoPlayer.setMediaItem(mediaItemBuilder.build())
@@ -275,11 +287,17 @@ fun PlayerScreen(
         }
     }
 
-    // Auto-hide controls after 4 seconds of inactivity
+    // Auto-hide controls after 4 seconds of inactivity and re-hide system bars
     LaunchedEffect(areControlsVisible, isPlaying) {
         if (areControlsVisible && isPlaying) {
             delay(4000)
             areControlsVisible = false
+        }
+        if (!areControlsVisible) {
+            window?.let { win ->
+                val insetsController = WindowCompat.getInsetsController(win, win.decorView)
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 

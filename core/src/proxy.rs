@@ -71,7 +71,7 @@ pub fn rewrite_m3u8(content: &str, base_url: &str, referer: &str) -> String {
                         format!("{}{}", base, raw_uri)
                     };
                     format!(
-                        r#"URI="/api/player/video?url={}&referer={}""#,
+                        r#"URI="http://127.0.0.1:8767/api/player/video?url={}&referer={}""#,
                         urlencoding::encode(&abs_url),
                         urlencoding::encode(referer)
                     )
@@ -91,7 +91,7 @@ pub fn rewrite_m3u8(content: &str, base_url: &str, referer: &str) -> String {
         };
 
         out.push(format!(
-            "/api/player/video?url={}&referer={}",
+            "http://127.0.0.1:8767/api/player/video?url={}&referer={}",
             urlencoding::encode(&abs_url),
             urlencoding::encode(referer)
         ));
@@ -109,48 +109,11 @@ pub async fn proxy_video_handler(Query(params): Query<VideoProxyParams>) -> Resp
         .and_then(|u| u.host_str().map(|h| h.to_string()))
         .unwrap_or_default();
 
-    // 1. Anti-DPI check: if target host is blocked by ISP DPI, use TLS desync engine
-    if is_dpi_blocked_host(&host) {
-        let headers = [
-            ("User-Agent", USER_AGENT),
-            ("Referer", referer.as_str()),
-        ];
-        match send_desync_http_get(&url, &headers, Duration::from_secs(10)).await {
-            Ok(bytes) => {
-                if is_m3u8(&url) {
-                    if let Ok(txt) = std::str::from_utf8(&bytes) {
-                        let rewritten = rewrite_m3u8(txt, &url, &referer);
-                        return (
-                            StatusCode::OK,
-                            [
-                                (header::CONTENT_TYPE, "application/vnd.apple.mpegurl"),
-                                (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-                            ],
-                            rewritten,
-                        ).into_response();
-                    }
-                }
-                return (
-                    StatusCode::OK,
-                    [
-                        (header::CONTENT_TYPE, "video/mp2t"),
-                        (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-                    ],
-                    bytes,
-                ).into_response();
-            }
-            Err(err) => {
-                tracing::warn!("TLS Desync failed for {}: {}", url, err);
-            }
-        }
-    }
-
-    // 2. Standard proxy fetch via reqwest
+    // High performance HTTP/2 streaming via PROXY_CLIENT
     let mut req = PROXY_CLIENT.get(&url).header("User-Agent", USER_AGENT);
     if !referer.is_empty() {
         req = req.header("Referer", &referer);
     }
-
     let upstream = match req.send().await {
         Ok(res) => res,
         Err(err) => {

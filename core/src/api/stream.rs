@@ -42,7 +42,7 @@ fn clean_slug_to_title(slug: &str) -> String {
     }
 }
 
-fn try_extract_mal_id_from_slug(slug: &str) -> Option<i64> {
+fn try_extract_anilist_id_from_slug(slug: &str) -> Option<i64> {
     let parts: Vec<&str> = slug.split('-').collect();
     if parts.len() > 1 {
         if let Some(last) = parts.last() {
@@ -113,7 +113,19 @@ async fn fetch_zoko_by_mal(mal_id: i64, episode: i32, mode: &str) -> Result<(Str
         .text()
         .await?;
 
-    deobfuscate_zoko(&html)
+    let (master_src, subs) = deobfuscate_zoko(&html)?;
+
+    // Fast verify upstream master M3U8 is live
+    let check_resp = HTTP_CLIENT
+        .get(&master_src)
+        .header("Referer", "https://zokoanime.video/")
+        .send()
+        .await?;
+    if !check_resp.status().is_success() {
+        return Err(anyhow!("Upstream stream returned HTTP {}", check_resp.status()));
+    }
+
+    Ok((master_src, subs))
 }
 
 async fn resolve_via_hianime_scraping(title: &str, episode: i32) -> Result<(String, Vec<SubtitleTrack>, String)> {
@@ -121,8 +133,8 @@ async fn resolve_via_hianime_scraping(title: &str, episode: i32) -> Result<(Stri
     let search_url = format!("{}/search?keyword={}", HI_BASE, urlencoding::encode(title));
     let search_resp = HTTP_CLIENT.get(&search_url).send().await?.text().await?;
 
-    // HiAnime search results: <a href="https://hianime.at/slug-12345" or href="/slug-12345"
-    let re_anime_id = regex::Regex::new(r#"href="(?:https://hianime\.at)?/[^"?/]+-(\d+)""#)?;
+    // HiAnime search results: match both /slug-12345 and /watch/slug-12345
+    let re_anime_id = regex::Regex::new(r#"href="(?:https://hianime\.at)?(?:/watch)?/[^"?/]+-(\d+)""#)?;
     let anime_id = re_anime_id
         .captures(&search_resp)
         .and_then(|c| c.get(1))
@@ -217,7 +229,7 @@ pub async fn resolve_stream(
     // 1. Check local SQLite cache first (TTL 2 hours)
     if let Ok(Some(cached)) = db.get_episode_cache(slug, episode, mode, 7200) {
         let proxied = format!(
-            "/api/player/video?url={}&referer={}",
+            "http://127.0.0.1:8767/api/player/video?url={}&referer={}",
             urlencoding::encode(&cached.master),
             urlencoding::encode(&cached.referer)
         );
@@ -236,9 +248,17 @@ pub async fn resolve_stream(
         });
     }
 
-    // 2. Resolve target MAL ID
-    let target_mal_id = mal_id.or_else(|| try_extract_mal_id_from_slug(slug));
-
+    // 2. Resolve target MAL ID (from param or query AniList GraphQL using ID from slug)
+    let target_mal_id = match mal_id {
+        Some(m) if m > 0 => Some(m),
+        _ => {
+            if let Some(al_id) = try_extract_anilist_id_from_slug(slug) {
+                crate::api::anilist::get_mal_id_by_anilist_id(al_id).await.unwrap_or(None)
+            } else {
+                None
+            }
+        }
+    };
     // 3. Resolve master stream and subtitles
     let (master_stream, mut subtitles, referer) = match target_mal_id {
         Some(m_id) => {
@@ -325,7 +345,7 @@ pub async fn resolve_stream(
     let _ = db.set_episode_cache(&cached);
 
     let proxied = format!(
-        "/api/player/video?url={}&referer={}",
+        "http://127.0.0.1:8767/api/player/video?url={}&referer={}",
         urlencoding::encode(&master_stream),
         urlencoding::encode(&referer)
     );
