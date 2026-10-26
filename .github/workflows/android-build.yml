@@ -1,0 +1,82 @@
+name: Build Android APK (Rust + Kotlin)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Cross-compile Rust Core & Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # 1. Setup Rust Toolchain & NDK Targets
+      # -----------------------------------------------------------------------
+      - name: Setup Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: true
+
+      # -----------------------------------------------------------------------
+      # 2. Compile Embedded Rust Library (.so) via cargo-ndk
+      # -----------------------------------------------------------------------
+      - name: Compile Rust Core Daemon
+        working-directory: ./core
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          mkdir -p ../android/app/src/main/jniLibs
+          cargo ndk -t arm64-v8a -t x86_64 -o ../android/app/src/main/jniLibs build --release
+          echo "Generated native libraries:"
+          ls -lhR ../android/app/src/main/jniLibs/
+
+      # -----------------------------------------------------------------------
+      # 3. Setup JDK & Build Android APK via Gradle
+      # -----------------------------------------------------------------------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        working-directory: ./android
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper
+          fi
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        working-directory: ./android
+        run: ./gradlew assembleDebug --stacktrace
+
+      # -----------------------------------------------------------------------
+      # 4. Upload Ready-to-Install APK Artifact
+      # -----------------------------------------------------------------------
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tatap-Android-Debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14

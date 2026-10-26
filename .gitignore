@@ -1,0 +1,27 @@
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Rust
+core/target/
+target/
+**/*.rs.bk
+
+# Android / Gradle
+.gradle/
+build/
+**/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/**/.cxx/
+android/**/captures/
+*.apk
+*.aab
+
+# Local development
+*.env
+local.env
+*.log

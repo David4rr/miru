@@ -1,0 +1,40 @@
+[package]
+name = "tatap-core"
+version = "0.1.0"
+edition = "2021"
+description = "Embedded Rust streaming & proxy daemon for Tatap Android"
+authors = ["Tatap Contributors"]
+
+[lib]
+name = "tatap_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Async Runtime & HTTP Server
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros", "sync", "time"] }
+axum = { version = "0.7", features = ["json", "tokio"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# HTTP Client & Streaming
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Local Storage (SQLite)
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# HTML Parsing & Scraping
+scraper = "0.20"
+
+# JNI Interface for Android
+jni = { version = "0.21", default-features = false }
+
+# Logging & Error Handling
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
+thiserror = "1.0"
+parking_lot = "0.12"
