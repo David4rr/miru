@@ -183,8 +183,15 @@ pub async fn proxy_video_handler(Query(params): Query<VideoProxyParams>) -> Resp
         // Stream video/audio chunks directly to client
         let mut headers = HeaderMap::new();
         headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".parse().unwrap());
-        if let Some(ct) = upstream.headers().get(header::CONTENT_TYPE) {
-            headers.insert(header::CONTENT_TYPE, ct.clone());
+        if url.contains(".ts") || url.contains(".mp4") || url.contains(".m4s") {
+            headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
+        } else if let Some(ct) = upstream.headers().get(header::CONTENT_TYPE) {
+            let ct_str = ct.to_str().unwrap_or("");
+            if ct_str.contains("image/") {
+                headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
+            } else {
+                headers.insert(header::CONTENT_TYPE, ct.clone());
+            }
         } else {
             headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
         }

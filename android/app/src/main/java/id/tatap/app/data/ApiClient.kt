@@ -66,11 +66,17 @@ object ApiClient {
         }
     }
 
-    suspend fun resolveStream(slug: String, ep: Int, mode: String = "sub"): Result<ResolvedStream> = withContext(Dispatchers.IO) {
+    suspend fun resolveStream(
+        slug: String,
+        ep: Int,
+        mode: String = "sub",
+        malId: Long? = null
+    ): Result<ResolvedStream> = withContext(Dispatchers.IO) {
         runCatching {
             val encodedSlug = java.net.URLEncoder.encode(slug, "UTF-8")
+            val malQuery = if (malId != null && malId > 0) "&mal_id=$malId" else ""
             val request = Request.Builder()
-                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode")
+                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode$malQuery")
                 .get()
                 .build()
 
@@ -84,11 +90,17 @@ object ApiClient {
                 val subtitles = mutableListOf<SubtitleTrack>()
                 for (i in 0 until subArray.length()) {
                     val sObj = subArray.getJSONObject(i)
+                    val rawUrl = sObj.optString("url")
+                    val resolvedSubUrl = if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+                        rawUrl
+                    } else {
+                        "$BASE_URL$rawUrl"
+                    }
                     subtitles.add(
                         SubtitleTrack(
                             label = sObj.optString("label"),
                             lang = sObj.optString("lang"),
-                            url = sObj.optString("url"),
+                            url = resolvedSubUrl,
                             default = sObj.optBoolean("default", false)
                         )
                     )

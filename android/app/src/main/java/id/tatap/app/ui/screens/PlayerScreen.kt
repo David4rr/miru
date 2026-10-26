@@ -2,6 +2,7 @@ package id.tatap.app.ui.screens
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.view.ViewGroup
@@ -22,16 +23,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
@@ -61,12 +68,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -76,6 +88,7 @@ import id.tatap.app.data.AnimeCard
 import id.tatap.app.data.ApiClient
 import id.tatap.app.data.ResolvedStream
 import id.tatap.app.data.WatchHistoryItem
+import id.tatap.app.ui.components.OrangeButton
 import id.tatap.app.ui.theme.CrunchyOrange
 import id.tatap.app.ui.theme.DarkBackground
 import id.tatap.app.ui.theme.DarkSurface
@@ -94,6 +107,8 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val activity = context as? Activity
+    val window = activity?.window
 
     var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }
     var isLoadingStream by remember { mutableStateOf(true) }
@@ -105,17 +120,29 @@ fun PlayerScreen(
     var isBuffering by remember { mutableStateOf(true) }
 
     var areControlsVisible by remember { mutableStateOf(true) }
+    var isLandscape by remember { mutableStateOf(false) }
     var selectedSpeed by remember { mutableFloatStateOf(1.0f) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
     var selectedSubtitleIndex by remember { mutableStateOf(0) }
 
-    // Keep screen turned on while playing
+    // Immersive sticky fullscreen mode: hide system bars and keep screen on
     DisposableEffect(Unit) {
-        val window = (context as? Activity)?.window
-        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window?.let { win ->
+            win.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            val insetsController = WindowCompat.getInsetsController(win, win.decorView)
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        }
+
         onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            window?.let { win ->
+                win.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                val insetsController = WindowCompat.getInsetsController(win, win.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -149,51 +176,60 @@ fun PlayerScreen(
         onBackClick()
     }
 
-    // Resolve stream and initialize playback
-    LaunchedEffect(anime.slug, episode) {
-        isLoadingStream = true
-        streamError = null
-        ApiClient.resolveStream(anime.slug, episode, "sub")
-            .onSuccess { res ->
-                resolvedStream = res
-                isLoadingStream = false
+    fun loadStream() {
+        scope.launch {
+            isLoadingStream = true
+            isBuffering = true
+            streamError = null
+            ApiClient.resolveStream(anime.slug, episode, "sub", anime.idMal)
+                .onSuccess { res ->
+                    resolvedStream = res
+                    isLoadingStream = false
 
-                // Build HLS MediaItem
-                val mediaItemBuilder = MediaItem.Builder()
-                    .setUri(res.proxiedMasterUrl)
-                    .setMimeType(MimeTypes.APPLICATION_M3U8)
+                    // Build HLS MediaItem
+                    val mediaItemBuilder = MediaItem.Builder()
+                        .setUri(res.proxiedMasterUrl)
+                        .setMimeType(MimeTypes.APPLICATION_M3U8)
 
-                // Add default Indonesian Subtitle if available
-                if (res.subtitles.isNotEmpty()) {
-                    val subTrack = res.subtitles.first()
-                    val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(subTrack.url))
-                        .setMimeType(MimeTypes.TEXT_VTT)
-                        .setLanguage("id")
-                        .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-                        .build()
-                    mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
-                }
+                    // Add default Indonesian Subtitle if available
+                    if (res.subtitles.isNotEmpty()) {
+                        val subTrack = res.subtitles.firstOrNull { it.default } ?: res.subtitles.first()
+                        val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(subTrack.url))
+                            .setMimeType(MimeTypes.TEXT_VTT)
+                            .setLanguage(subTrack.lang)
+                            .setLabel(subTrack.label)
+                            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                            .build()
+                        mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
+                    }
 
-                exoPlayer.setMediaItem(mediaItemBuilder.build())
-                exoPlayer.prepare()
-                exoPlayer.play()
+                    exoPlayer.setMediaItem(mediaItemBuilder.build())
+                    exoPlayer.prepare()
+                    exoPlayer.play()
 
-                // Add to watch history
-                ApiClient.addHistory(
-                    WatchHistoryItem(
-                        slug = anime.slug,
-                        title = anime.title,
-                        episode = episode,
-                        poster = anime.poster,
-                        type = anime.status ?: "ANIME",
-                        progress = 0
+                    // Add to watch history
+                    ApiClient.addHistory(
+                        WatchHistoryItem(
+                            slug = anime.slug,
+                            title = anime.title,
+                            episode = episode,
+                            poster = anime.poster,
+                            type = anime.status ?: "ANIME",
+                            progress = 0
+                        )
                     )
-                )
-            }
-            .onFailure {
-                isLoadingStream = false
-                streamError = it.localizedMessage ?: "Gagal memuat video stream"
-            }
+                }
+                .onFailure {
+                    isLoadingStream = false
+                    isBuffering = false
+                    streamError = it.localizedMessage ?: "Gagal memuat video stream"
+                }
+        }
+    }
+
+    // Resolve stream on initial launch or episode change
+    LaunchedEffect(anime.slug, episode) {
+        loadStream()
     }
 
     // Periodic time & state listener
@@ -208,6 +244,12 @@ fun PlayerScreen(
                 if (state == Player.STATE_READY) {
                     duration = exoPlayer.duration.coerceAtLeast(0L)
                 }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                isBuffering = false
+                isLoadingStream = false
+                streamError = "Gagal memutar video (${error.errorCodeName}): ${error.localizedMessage ?: "Format video tidak didukung"}"
             }
         }
         exoPlayer.addListener(listener)
@@ -226,7 +268,6 @@ fun PlayerScreen(
             currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
             duration = exoPlayer.duration.coerceAtLeast(0L)
             tick++
-            // Auto-sync progress to database every 10 seconds
             if (tick % 20 == 0) {
                 saveProgressNow()
             }
@@ -234,28 +275,20 @@ fun PlayerScreen(
         }
     }
 
-    // Controls Auto-Hide timer (5 seconds)
+    // Auto-hide controls after 4 seconds of inactivity
     LaunchedEffect(areControlsVisible, isPlaying) {
         if (areControlsVisible && isPlaying) {
-            delay(5000)
+            delay(4000)
             areControlsVisible = false
         }
-    }
-
-    // Format helper for timestamps (MM:SS)
-    fun formatTime(ms: Long): String {
-        val totalSec = (ms / 1000).coerceAtLeast(0)
-        val m = totalSec / 60
-        val s = totalSec % 60
-        return String.format("%02d:%02d", m, s)
     }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(Color.Black)
     ) {
-        // 1. ExoPlayer Video Surface
+        // 1. AndroidView wrapping ExoPlayer Surface
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -277,11 +310,9 @@ fun PlayerScreen(
                         onDoubleTap = { offset ->
                             val screenWidth = size.width
                             if (offset.x < screenWidth / 2) {
-                                // Seek backward 10s
                                 val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
                                 exoPlayer.seekTo(target)
                             } else {
-                                // Seek forward 10s
                                 val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
                                 exoPlayer.seekTo(target)
                             }
@@ -290,8 +321,8 @@ fun PlayerScreen(
                 }
         )
 
-        // 2. Buffering / Loading Indicator
-        if (isLoadingStream || isBuffering) {
+        // 2. Buffering / Connecting Indicator (Only while not in error)
+        if (streamError == null && (isLoadingStream || isBuffering)) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -313,7 +344,50 @@ fun PlayerScreen(
             }
         }
 
-        // 3. AniSkip Floating Pill Button (Lewati Intro / Outro)
+        // 3. Error Overlay with Retry Button
+        if (streamError != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.92f))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ErrorOutline,
+                        contentDescription = null,
+                        tint = CrunchyOrange,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Gagal Memutar Video",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = streamError ?: "Tidak dapat menghubungi server lokal",
+                        fontSize = 13.sp,
+                        color = TextMuted,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    OrangeButton(
+                        text = "Coba Lagi",
+                        icon = Icons.Default.Refresh,
+                        onClick = { loadStream() }
+                    )
+                }
+            }
+        }
+
+        // 4. AniSkip Floating Pill Button (Lewati Intro / Outro)
         val curSec = currentPosition / 1000.0
         val intro = resolvedStream?.intro
         val outro = resolvedStream?.outro
@@ -325,6 +399,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
                     .padding(end = 24.dp, bottom = 80.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(CrunchyOrange)
@@ -346,7 +421,7 @@ fun PlayerScreen(
             }
         }
 
-        // 4. Custom Crunchyroll Controls Overlay (HUD)
+        // 5. Custom Crunchyroll Controls Overlay (HUD)
         AnimatedVisibility(
             visible = areControlsVisible,
             enter = fadeIn(),
@@ -357,17 +432,18 @@ fun PlayerScreen(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.55f))
             ) {
-                // Top Header Controls
+                // Top Header Controls with statusBarsPadding
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                                listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent)
                             )
                         )
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = {
@@ -418,6 +494,22 @@ fun PlayerScreen(
                             tint = Color.White
                         )
                     }
+
+                    // Fullscreen / Landscape Toggle button
+                    IconButton(onClick = {
+                        isLandscape = !isLandscape
+                        activity?.requestedOrientation = if (isLandscape) {
+                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                            contentDescription = if (isLandscape) "Keluar Layar Penuh" else "Layar Penuh",
+                            tint = Color.White
+                        )
+                    }
                 }
 
                 // Center Play/Pause & 10s Seek Controls
@@ -426,7 +518,6 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(36.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Rewind 10s
                     IconButton(
                         onClick = {
                             val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
@@ -442,7 +533,6 @@ fun PlayerScreen(
                         )
                     }
 
-                    // Play / Pause Circle
                     Box(
                         modifier = Modifier
                             .size(68.dp)
@@ -459,13 +549,12 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            contentDescription = if (isPlaying) "Jeda" else "Putar",
                             tint = Color.White,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(40.dp)
                         )
                     }
 
-                    // Forward 10s
                     IconButton(
                         onClick = {
                             val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
@@ -482,7 +571,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // Bottom Seekbar & Timing Row
+                // Bottom Seekbar & Timing Row with navigationBarsPadding
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -492,7 +581,8 @@ fun PlayerScreen(
                                 listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                             )
                         )
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -546,16 +636,35 @@ fun PlayerScreen(
                                     .clickable {
                                         selectedSubtitleIndex = idx
                                         showSubtitleDialog = false
+                                        val mediaItemBuilder = MediaItem.Builder()
+                                            .setUri(resolvedStream?.proxiedMasterUrl ?: "")
+                                            .setMimeType(MimeTypes.APPLICATION_M3U8)
+
+                                        val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(track.url))
+                                            .setMimeType(MimeTypes.TEXT_VTT)
+                                            .setLanguage(track.lang)
+                                            .setLabel(track.label)
+                                            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                                            .build()
+                                        mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
+                                        val pos = exoPlayer.currentPosition
+                                        exoPlayer.setMediaItem(mediaItemBuilder.build())
+                                        exoPlayer.seekTo(pos)
+                                        exoPlayer.prepare()
+                                        exoPlayer.play()
                                     }
-                                    .padding(vertical = 10.dp),
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = track.label,
                                     color = if (selectedSubtitleIndex == idx) CrunchyOrange else TextPrimary,
-                                    fontWeight = if (selectedSubtitleIndex == idx) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 14.sp
                                 )
+                                if (selectedSubtitleIndex == idx) {
+                                    Text("Aktif", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -568,13 +677,13 @@ fun PlayerScreen(
             )
         }
 
-        // Playback Speed Selector Dialog
+        // Speed Selector Dialog
         if (showSpeedDialog) {
             val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
             AlertDialog(
                 onDismissRequest = { showSpeedDialog = false },
                 containerColor = DarkSurface,
-                title = { Text("Kecepatan Pemutaran", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Kecepatan Putar", color = TextPrimary, fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
                         speeds.forEach { spd ->
@@ -586,15 +695,17 @@ fun PlayerScreen(
                                         exoPlayer.playbackParameters = PlaybackParameters(spd)
                                         showSpeedDialog = false
                                     }
-                                    .padding(vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
                                     text = "${spd}x",
                                     color = if (selectedSpeed == spd) CrunchyOrange else TextPrimary,
-                                    fontWeight = if (selectedSpeed == spd) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 14.sp
                                 )
+                                if (selectedSpeed == spd) {
+                                    Text("Dipilih", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -607,4 +718,11 @@ fun PlayerScreen(
             )
         }
     }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
