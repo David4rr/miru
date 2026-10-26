@@ -12,3 +12,8 @@ val BorderSubtle = Color(0xFF2E3038)
 val TextPrimary = Color(0xFFFFFFFF)
 val TextSecondary = Color(0xFFA0A0A0)
 val TextMuted = Color(0xFF63666A)
+
+val CrunchyOrange = CrunchyrollOrange
+val DarkBackground = DarkOled
+val DarkSurface = SurfaceDark
+val DarkSurfaceVariant = SurfaceVariantDark

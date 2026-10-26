@@ -1,0 +1,265 @@
+package id.tatap.app.data
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+object ApiClient {
+    private const val BASE_URL = "http://127.0.0.1:8767"
+    private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
+        .build()
+
+    suspend fun getHomeCatalog(): Result<HomeCatalog> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/home")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: ${resp.message}")
+                val bodyStr = resp.body?.string().orEmpty()
+                val json = JSONObject(bodyStr)
+                val data = json.getJSONObject("data")
+
+                val heroList = parseAnimeCards(data.optJSONArray("hero"))
+                val topAiring = parseAnimeCards(data.optJSONArray("top_airing"))
+                val seasonal = parseAnimeCards(data.optJSONArray("seasonal"))
+                val continueList = parseWatchHistory(data.optJSONArray("continue_watching"))
+
+                HomeCatalog(
+                    hero = heroList,
+                    continueWatching = continueList,
+                    topAiring = topAiring,
+                    seasonal = seasonal
+                )
+            }
+        }
+    }
+
+    suspend fun searchAnime(query: String, page: Int = 1, perPage: Int = 20): Result<List<AnimeCard>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
+            val request = Request.Builder()
+                .url("$BASE_URL/api/search?q=$encodedQuery&page=$page&per_page=$perPage")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: ${resp.message}")
+                val bodyStr = resp.body?.string().orEmpty()
+                val json = JSONObject(bodyStr)
+                val data = json.optJSONArray("data")
+                parseAnimeCards(data)
+            }
+        }
+    }
+
+    suspend fun resolveStream(slug: String, ep: Int, mode: String = "sub"): Result<ResolvedStream> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedSlug = java.net.URLEncoder.encode(slug, "UTF-8")
+            val request = Request.Builder()
+                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: ${resp.message}")
+                val bodyStr = resp.body?.string().orEmpty()
+                val json = JSONObject(bodyStr)
+                val data = json.getJSONObject("data")
+
+                val subArray = data.optJSONArray("subtitles") ?: JSONArray()
+                val subtitles = mutableListOf<SubtitleTrack>()
+                for (i in 0 until subArray.length()) {
+                    val sObj = subArray.getJSONObject(i)
+                    subtitles.add(
+                        SubtitleTrack(
+                            label = sObj.optString("label"),
+                            lang = sObj.optString("lang"),
+                            url = sObj.optString("url"),
+                            default = sObj.optBoolean("default", false)
+                        )
+                    )
+                }
+
+                val introObj = data.optJSONObject("intro")
+                val outroObj = data.optJSONObject("outro")
+
+                ResolvedStream(
+                    slug = data.optString("slug"),
+                    episode = data.optInt("episode"),
+                    mode = data.optString("mode"),
+                    master = data.optString("master"),
+                    referer = data.optString("referer"),
+                    server = data.optString("server"),
+                    subtitles = subtitles,
+                    intro = SkipInterval(
+                        start = introObj?.optDouble("start") ?: 0.0,
+                        end = introObj?.optDouble("end") ?: 0.0
+                    ),
+                    outro = SkipInterval(
+                        start = outroObj?.optDouble("start") ?: 0.0,
+                        end = outroObj?.optDouble("end") ?: 0.0
+                    ),
+                    proxiedMasterUrl = "$BASE_URL${data.optString("proxied_master_url")}"
+                )
+            }
+        }
+    }
+
+    suspend fun getBookmarks(): Result<List<BookmarkItem>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url("$BASE_URL/api/bookmarks").get().build()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
+                val json = JSONObject(resp.body?.string().orEmpty())
+                val arr = json.optJSONArray("data") ?: JSONArray()
+                val list = mutableListOf<BookmarkItem>()
+                for (i in 0 until arr.length()) {
+                    val item = arr.getJSONObject(i)
+                    list.add(
+                        BookmarkItem(
+                            slug = item.optString("slug"),
+                            title = item.optString("title"),
+                            poster = item.optString("poster"),
+                            type = item.optString("type"),
+                            sub = item.optString("sub"),
+                            eps = item.optString("eps"),
+                            score = item.optDouble("score", 0.0),
+                            createdAt = item.optString("created_at")
+                        )
+                    )
+                }
+                list
+            }
+        }
+    }
+
+    suspend fun addBookmark(item: BookmarkItem): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                put("slug", item.slug)
+                put("title", item.title)
+                put("poster", item.poster)
+                put("type", item.type)
+                put("sub", item.sub)
+                put("eps", item.eps)
+                put("score", item.score)
+            }
+            val request = Request.Builder()
+                .url("$BASE_URL/api/bookmarks")
+                .post(json.toString().toRequestBody(JSON_MEDIA))
+                .build()
+
+            client.newCall(request).execute().close()
+        }
+    }
+
+    suspend fun removeBookmark(slug: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/bookmarks/$slug")
+                .delete()
+                .build()
+
+            client.newCall(request).execute().close()
+        }
+    }
+
+    suspend fun getHistory(): Result<List<WatchHistoryItem>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url("$BASE_URL/api/history").get().build()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
+                val json = JSONObject(resp.body?.string().orEmpty())
+                parseWatchHistory(json.optJSONArray("data"))
+            }
+        }
+    }
+
+    suspend fun saveProgress(slug: String, episode: Int, progress: Int, duration: Int): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                put("slug", slug)
+                put("episode", episode)
+                put("progress", progress)
+                put("duration", duration)
+            }
+            val request = Request.Builder()
+                .url("$BASE_URL/api/progress")
+                .post(json.toString().toRequestBody(JSON_MEDIA))
+                .build()
+
+            client.newCall(request).execute().close()
+        }
+    }
+
+    private fun parseAnimeCards(array: JSONArray?): List<AnimeCard> {
+        if (array == null) return emptyList()
+        val list = mutableListOf<AnimeCard>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val genresArr = obj.optJSONArray("genres")
+            val genres = mutableListOf<String>()
+            if (genresArr != null) {
+                for (g in 0 until genresArr.length()) {
+                    genres.add(genresArr.optString(g))
+                }
+            }
+
+            list.add(
+                AnimeCard(
+                    id = obj.optLong("id"),
+                    idMal = if (obj.has("id_mal") && !obj.isNull("id_mal")) obj.optLong("id_mal") else null,
+                    slug = obj.optString("slug"),
+                    title = obj.optString("title"),
+                    titleEnglish = if (obj.has("title_english") && !obj.isNull("title_english")) obj.optString("title_english") else null,
+                    poster = obj.optString("poster"),
+                    banner = if (obj.has("banner") && !obj.isNull("banner")) obj.optString("banner") else null,
+                    score = if (obj.has("score") && !obj.isNull("score")) obj.optDouble("score") else null,
+                    episodes = if (obj.has("episodes") && !obj.isNull("episodes")) obj.optInt("episodes") else null,
+                    episodesReleased = if (obj.has("episodes_released") && !obj.isNull("episodes_released")) obj.optInt("episodes_released") else null,
+                    status = if (obj.has("status") && !obj.isNull("status")) obj.optString("status") else null,
+                    seasonYear = if (obj.has("season_year") && !obj.isNull("season_year")) obj.optInt("season_year") else null,
+                    genres = genres,
+                    synopsis = if (obj.has("synopsis") && !obj.isNull("synopsis")) obj.optString("synopsis") else null
+                )
+            )
+        }
+        return list
+    }
+
+    private fun parseWatchHistory(array: JSONArray?): List<WatchHistoryItem> {
+        if (array == null) return emptyList()
+        val list = mutableListOf<WatchHistoryItem>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            list.add(
+                WatchHistoryItem(
+                    id = if (obj.has("id") && !obj.isNull("id")) obj.optLong("id") else null,
+                    slug = obj.optString("slug"),
+                    title = obj.optString("title"),
+                    episode = obj.optInt("episode"),
+                    mode = obj.optString("mode", "sub"),
+                    progress = obj.optInt("progress", 0),
+                    poster = obj.optString("poster"),
+                    type = obj.optString("type"),
+                    playedAt = if (obj.has("played_at")) obj.optString("played_at") else null
+                )
+            )
+        }
+        return list
+    }
+}
