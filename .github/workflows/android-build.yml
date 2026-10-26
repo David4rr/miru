@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - main
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # -----------------------------------------------------------------------
       # 1. Setup Rust Toolchain & NDK Targets
@@ -53,7 +58,7 @@ jobs:
       # 3. Setup JDK & Build Android APK via Gradle
       # -----------------------------------------------------------------------
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -75,8 +80,18 @@ jobs:
       # 4. Upload Ready-to-Install APK Artifact
       # -----------------------------------------------------------------------
       - name: Upload Debug APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Tatap-Android-Debug
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+      # -----------------------------------------------------------------------
+      # 5. Create GitHub Release on Tag (Direct .apk Download)
+      # -----------------------------------------------------------------------
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: android/app/build/outputs/apk/debug/*.apk
+          generate_release_notes: true
