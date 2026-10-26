@@ -95,7 +95,7 @@ fun HomeScreen(
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     CircularProgressIndicator(color = CrunchyOrange, modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(16.dp))
@@ -113,7 +113,7 @@ fun HomeScreen(
                         .fillMaxSize()
                         .padding(24.dp),
                     verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "Koneksi Bermasalah",

@@ -189,6 +189,26 @@ object ApiClient {
         }
     }
 
+    suspend fun addHistory(item: WatchHistoryItem): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                put("slug", item.slug)
+                put("title", item.title)
+                put("episode", item.episode)
+                put("mode", item.mode)
+                put("progress", item.progress)
+                put("poster", item.poster)
+                put("type", item.type)
+            }
+            val request = Request.Builder()
+                .url("$BASE_URL/api/history")
+                .post(json.toString().toRequestBody(JSON_MEDIA))
+                .build()
+
+            client.newCall(request).execute().close()
+        }
+    }
+
     suspend fun saveProgress(slug: String, episode: Int, progress: Int, duration: Int): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val json = JSONObject().apply {
