@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -169,6 +170,13 @@ fun HomeScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.weight(1f))
+                            IconButton(onClick = { loadData() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Muat Ulang",
+                                    tint = Color.White
+                                )
+                            }
                             IconButton(onClick = onSearchClick) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
@@ -178,7 +186,6 @@ fun HomeScreen(
                             }
                         }
                     }
-
                     // 1. Hero Banner Carousel
                     if (cat.hero.isNotEmpty()) {
                         item {
@@ -237,10 +244,11 @@ fun HomeScreen(
                                 contentPadding = PaddingValues(horizontal = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                items(cat.topAiring) { anime ->
+                                itemsIndexed(cat.topAiring) { index, anime ->
                                     AnimePosterCard(
                                         anime = anime,
-                                        onClick = onAnimeClick
+                                        onClick = onAnimeClick,
+                                        rank = index + 1
                                     )
                                 }
                             }

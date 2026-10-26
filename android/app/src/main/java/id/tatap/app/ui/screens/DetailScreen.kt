@@ -1,5 +1,5 @@
 package id.tatap.app.ui.screens
-
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,8 +32,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,7 +54,7 @@ import coil.compose.AsyncImage
 import id.tatap.app.data.AnimeCard
 import id.tatap.app.data.ApiClient
 import id.tatap.app.data.BookmarkItem
-import id.tatap.app.ui.components.OrangeButton
+import id.tatap.app.data.WatchHistoryItem
 import id.tatap.app.ui.components.SectionHeader
 import id.tatap.app.ui.theme.CrunchyOrange
 import id.tatap.app.ui.theme.DarkBackground
@@ -73,6 +73,7 @@ fun DetailScreen(
     modifier: Modifier = Modifier
 ) {
     var isBookmarked by remember { mutableStateOf(false) }
+    var watchedHistory by remember { mutableStateOf<WatchHistoryItem?>(null) }
     var isSynopsisExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -80,8 +81,10 @@ fun DetailScreen(
         ApiClient.getBookmarks().onSuccess { list ->
             isBookmarked = list.any { it.slug == anime.slug }
         }
+        ApiClient.getHistory().onSuccess { list ->
+            watchedHistory = list.firstOrNull { it.slug == anime.slug }
+        }
     }
-
     fun toggleBookmark() {
         scope.launch {
             if (isBookmarked) {
@@ -273,12 +276,13 @@ fun DetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
+                    val resumeEp = watchedHistory?.episode ?: 1
+                    val ctaText = if (watchedHistory != null) "Lanjutkan Menonton (Episode $resumeEp)" else "Mulai Menonton (Episode 1)"
                     OrangeButton(
-                        text = "Mulai Menonton (Episode 1)",
-                        onClick = { onPlayEpisodeClick(anime, 1) },
+                        text = ctaText,
+                        onClick = { onPlayEpisodeClick(anime, resumeEp) },
                         modifier = Modifier.fillMaxWidth()
                     )
-
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Genre Pills
@@ -308,29 +312,31 @@ fun DetailScreen(
 
                     // Synopsis Box
                     if (!anime.synopsis.isNullOrEmpty()) {
-                        Text(
-                            text = "Sinopsis",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = anime.synopsis,
-                            fontSize = 13.sp,
-                            color = TextMuted,
-                            lineHeight = 18.sp,
-                            maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (isSynopsisExpanded) "Tutup Sinopsis" else "Baca Selengkapnya",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CrunchyOrange,
-                            modifier = Modifier.clickable { isSynopsisExpanded = !isSynopsisExpanded }
-                        )
+                        Column(modifier = Modifier.animateContentSize()) {
+                            Text(
+                                text = "Sinopsis",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = anime.synopsis,
+                                fontSize = 13.sp,
+                                color = TextMuted,
+                                lineHeight = 18.sp,
+                                maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isSynopsisExpanded) "Tutup Sinopsis" else "Baca Selengkapnya",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CrunchyOrange,
+                                modifier = Modifier.clickable { isSynopsisExpanded = !isSynopsisExpanded }
+                            )
+                        }
                         Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
@@ -384,8 +390,18 @@ fun DetailScreen(
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
+                            if (watchedHistory != null && watchedHistory?.episode == epNum) {
+                                LinearProgressIndicator(
+                                    progress = { (watchedHistory!!.progress.toFloat() / 100f).coerceIn(0f, 1f) },
+                                    color = CrunchyOrange,
+                                    trackColor = Color.White.copy(alpha = 0.2f),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .height(3.dp)
+                                )
+                            }
                         }
-
                         Spacer(modifier = Modifier.width(14.dp))
 
                         Column(modifier = Modifier.weight(1f)) {
@@ -396,10 +412,17 @@ fun DetailScreen(
                                 color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
+                            val epStatus = if (watchedHistory != null && watchedHistory?.episode == epNum) {
+                                "Sedang Ditonton (${watchedHistory!!.progress}%)"
+                            } else if (watchedHistory != null && (watchedHistory?.episode ?: 0) > epNum) {
+                                "Sudah Ditonton • Takarir Indonesia"
+                            } else {
+                                "Takarir Indonesia • HD 1080p"
+                            }
                             Text(
-                                text = "Takarir Indonesia • HD 1080p",
+                                text = epStatus,
                                 fontSize = 11.sp,
-                                color = TextMuted
+                                color = if (watchedHistory != null && watchedHistory?.episode == epNum) CrunchyOrange else TextMuted
                             )
                         }
 

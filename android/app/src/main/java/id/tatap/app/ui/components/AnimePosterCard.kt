@@ -40,7 +40,8 @@ import id.tatap.app.ui.theme.TextPrimary
 fun AnimePosterCard(
     anime: AnimeCard,
     onClick: (AnimeCard) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    rank: Int? = null
 ) {
     Column(
         modifier = modifier
@@ -76,6 +77,24 @@ fun AnimePosterCard(
                         )
                     )
             )
+            // Rank Badge (Top-Left)
+            if (rank != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (rank <= 3) CrunchyOrange else Color.Black.copy(alpha = 0.8f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "#$rank",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
+            }
 
             // Rating Pill (Top-Right)
             if (anime.score != null && anime.score > 0.0) {

@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,15 +24,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
@@ -40,12 +46,19 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.filled.VolumeMute
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -55,6 +68,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +83,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -92,16 +107,20 @@ import id.tatap.app.data.AnimeCard
 import id.tatap.app.data.ApiClient
 import id.tatap.app.data.ResolvedStream
 import id.tatap.app.data.WatchHistoryItem
+import id.tatap.app.data.WatchProgressItem
 import id.tatap.app.ui.components.OrangeButton
 import id.tatap.app.ui.theme.CrunchyOrange
 import id.tatap.app.ui.theme.DarkBackground
 import id.tatap.app.ui.theme.DarkSurface
+import id.tatap.app.ui.theme.DarkSurfaceVariant
 import id.tatap.app.ui.theme.TextMuted
 import id.tatap.app.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(UnstableApi::class)
+private data class SeekFeedback(val isForward: Boolean, val timestamp: Long)
+
+@OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     anime: AnimeCard,
@@ -114,6 +133,9 @@ fun PlayerScreen(
     val activity = context as? Activity
     val window = activity?.window
 
+    var currentEpisode by remember(episode) { mutableIntStateOf(episode) }
+    val totalEpisodes = anime.episodesReleased ?: anime.episodes ?: 12
+
     var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }
     var isLoadingStream by remember { mutableStateOf(true) }
     var streamError by remember { mutableStateOf<String?>(null) }
@@ -123,14 +145,40 @@ fun PlayerScreen(
     var duration by remember { mutableLongStateOf(0L) }
     var isBuffering by remember { mutableStateOf(true) }
 
-    var areControlsVisible by remember { mutableStateOf(true) }
+    var areControlsVisible by remember { mutableStateOf(false) }
     var isLandscape by remember { mutableStateOf(false) }
     var selectedSpeed by remember { mutableFloatStateOf(1.0f) }
-    var showSpeedDialog by remember { mutableStateOf(false) }
-    var showSubtitleDialog by remember { mutableStateOf(false) }
+    var showSpeedSheet by remember { mutableStateOf(false) }
+    var showSubtitleSheet by remember { mutableStateOf(false) }
+    var showEpisodeSheet by remember { mutableStateOf(false) }
     var selectedSubtitleIndex by remember { mutableStateOf(0) }
 
-    // Immersive sticky fullscreen mode: hide system bars and keep screen on
+    // Double-tap seek visual feedback
+    var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
+
+    // Brightness and Volume HUD
+    var gestureHudType by remember { mutableStateOf<String?>(null) } // "brightness" or "volume"
+    var gestureHudValue by remember { mutableFloatStateOf(0f) }
+    var gestureHudTimestamp by remember { mutableLongStateOf(0L) }
+
+    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val maxAudioVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
+
+    LaunchedEffect(gestureHudTimestamp) {
+        if (gestureHudType != null) {
+            delay(1200)
+            gestureHudType = null
+        }
+    }
+
+    LaunchedEffect(seekFeedback?.timestamp) {
+        if (seekFeedback != null) {
+            delay(750)
+            seekFeedback = null
+        }
+    }
+
+    // Immersive sticky fullscreen mode
     DisposableEffect(Unit) {
         window?.let { win ->
             win.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -150,7 +198,7 @@ fun PlayerScreen(
         }
     }
 
-    // Build ExoPlayer instance with fast low-latency playback buffering
+    // Build ExoPlayer instance with low-latency playback buffering
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -177,27 +225,21 @@ fun PlayerScreen(
             }
     }
 
-    // Save watch progress to local daemon helper
     fun saveProgressNow() {
         if (duration > 0) {
             val progressPercent = ((currentPosition * 100) / duration).toInt()
             scope.launch {
                 ApiClient.saveProgress(
-                    slug = anime.slug,
-                    episode = episode,
-                    progress = progressPercent,
-                    duration = (duration / 1000).toInt()
+                    WatchProgressItem(
+                        slug = anime.slug,
+                        episode = currentEpisode,
+                        progress = progressPercent,
+                        position = currentPosition,
+                        duration = duration
+                    )
                 )
             }
         }
-    }
-
-    // Back handling with state cleanup
-    BackHandler {
-        saveProgressNow()
-        exoPlayer.stop()
-        exoPlayer.release()
-        onBackClick()
     }
 
     fun loadStream() {
@@ -205,17 +247,17 @@ fun PlayerScreen(
             isLoadingStream = true
             isBuffering = true
             streamError = null
-            ApiClient.resolveStream(anime.slug, episode, "sub", anime.idMal)
+
+            ApiClient.resolveStream(anime.slug, currentEpisode, "sub", anime.idMal)
                 .onSuccess { res ->
                     resolvedStream = res
                     isLoadingStream = false
 
-                    // Build HLS MediaItem
                     val mediaItemBuilder = MediaItem.Builder()
                         .setUri(res.proxiedMasterUrl)
                         .setMimeType(MimeTypes.APPLICATION_M3U8)
 
-                    // Only attach the default / active subtitle track initially to prevent socket starvation
+                    // Attach only the single default / active subtitle initially
                     val defaultSub = res.subtitles.firstOrNull { it.default } ?: res.subtitles.firstOrNull()
                     if (defaultSub != null && defaultSub.url.isNotBlank()) {
                         val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(defaultSub.url))
@@ -231,12 +273,11 @@ fun PlayerScreen(
                     exoPlayer.prepare()
                     exoPlayer.play()
 
-                    // Add to watch history
                     ApiClient.addHistory(
                         WatchHistoryItem(
                             slug = anime.slug,
                             title = anime.title,
-                            episode = episode,
+                            episode = currentEpisode,
                             poster = anime.poster,
                             type = anime.status ?: "ANIME",
                             progress = 0
@@ -251,12 +292,10 @@ fun PlayerScreen(
         }
     }
 
-    // Resolve stream on initial launch or episode change
-    LaunchedEffect(anime.slug, episode) {
+    LaunchedEffect(anime.slug, currentEpisode) {
         loadStream()
     }
 
-    // Periodic time & state listener
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
@@ -294,23 +333,25 @@ fun PlayerScreen(
         }
     }
 
-    // Periodic progress poller (every 500ms)
+    // Periodic progress poller
     LaunchedEffect(exoPlayer) {
         var tick = 0
         while (true) {
             currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
-            duration = exoPlayer.duration.coerceAtLeast(0L)
+            if (duration <= 0 && exoPlayer.duration > 0) {
+                duration = exoPlayer.duration
+            }
             tick++
-            if (tick % 20 == 0) {
+            if (tick % 10 == 0 && isPlaying) {
                 saveProgressNow()
             }
             delay(500)
         }
     }
 
-    // Auto-hide controls after 4 seconds of inactivity and re-hide system bars
-    LaunchedEffect(areControlsVisible, isPlaying) {
-        if (areControlsVisible && isPlaying) {
+    // Auto-hide controls after 4 seconds of inactivity
+    LaunchedEffect(areControlsVisible, isPlaying, isBuffering, isLoadingStream) {
+        if (areControlsVisible && isPlaying && !isBuffering && !isLoadingStream) {
             delay(4000)
             areControlsVisible = false
         }
@@ -322,12 +363,19 @@ fun PlayerScreen(
         }
     }
 
+    BackHandler {
+        saveProgressNow()
+        exoPlayer.stop()
+        exoPlayer.release()
+        onBackClick()
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(DarkBackground)
     ) {
-        // 1. AndroidView wrapping ExoPlayer Surface
+        // 1. Video Surface with Tap and Drag Gestures
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -339,6 +387,11 @@ fun PlayerScreen(
                     )
                 }
             },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Gesture Overlay Layer (Tap, Double Tap, Vertical Drag for Brightness & Volume)
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
@@ -351,39 +404,205 @@ fun PlayerScreen(
                             if (offset.x < screenWidth / 2) {
                                 val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
                                 exoPlayer.seekTo(target)
+                                seekFeedback = SeekFeedback(isForward = false, timestamp = System.currentTimeMillis())
                             } else {
                                 val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
                                 exoPlayer.seekTo(target)
+                                seekFeedback = SeekFeedback(isForward = true, timestamp = System.currentTimeMillis())
+                            }
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { change, dragAmount ->
+                            change.consume()
+                            val isLeft = change.position.x < size.width / 2
+                            if (isLeft) {
+                                // Screen Brightness adjustment
+                                val win = window
+                                if (win != null) {
+                                    val currentBrightness = if (win.attributes.screenBrightness < 0) 0.5f else win.attributes.screenBrightness
+                                    val delta = -dragAmount / 450f
+                                    val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
+                                    val lp = win.attributes
+                                    lp.screenBrightness = newBrightness
+                                    win.attributes = lp
+                                    gestureHudType = "brightness"
+                                    gestureHudValue = newBrightness
+                                    gestureHudTimestamp = System.currentTimeMillis()
+                                }
+                            } else {
+                                // Audio Volume adjustment
+                                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                val delta = if (dragAmount < -10) 1 else if (dragAmount > 10) -1 else 0
+                                if (delta != 0) {
+                                    val newVol = (currentVol + delta).coerceIn(0, maxAudioVolume)
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                    gestureHudType = "volume"
+                                    gestureHudValue = newVol.toFloat() / maxAudioVolume.toFloat()
+                                    gestureHudTimestamp = System.currentTimeMillis()
+                                }
                             }
                         }
                     )
                 }
         )
 
-        // 2. Buffering / Connecting Indicator (Only while not in error)
-        if (streamError == null && (isLoadingStream || isBuffering)) {
+        // 2. Loading Stream State (Clean, centered card without overlapping play button)
+        if (isLoadingStream && streamError == null) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     CircularProgressIndicator(
                         color = CrunchyOrange,
-                        modifier = Modifier.size(54.dp),
-                        strokeWidth = 4.dp
+                        modifier = Modifier.size(50.dp),
+                        strokeWidth = 3.5.dp
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = if (isLoadingStream) "Menghubungkan stream..." else "Memuat video...",
+                        text = "Menghubungkan Episode $currentEpisode...",
                         color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = anime.title,
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
 
-        // 3. Error Overlay with Retry Button
+        // 3. Mid-playback Rebuffering Spinner (When controls are hidden)
+        if (!isLoadingStream && isBuffering && streamError == null && !areControlsVisible) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = CrunchyOrange,
+                    modifier = Modifier.size(50.dp),
+                    strokeWidth = 3.5.dp
+                )
+            }
+        }
+
+        // 4. Double-Tap Seek Visual Feedback Pill
+        if (seekFeedback != null) {
+            val isFwd = seekFeedback!!.isForward
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 48.dp),
+                contentAlignment = if (isFwd) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (!isFwd) {
+                            Icon(
+                                imageVector = Icons.Default.Replay10,
+                                contentDescription = null,
+                                tint = CrunchyOrange,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "-10 Detik",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Text(
+                                text = "+10 Detik",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Forward10,
+                                contentDescription = null,
+                                tint = CrunchyOrange,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Brightness & Volume Swipe Gesture HUD
+        if (gestureHudType != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(top = 16.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.Black.copy(alpha = 0.8f))
+                        .padding(horizontal = 18.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        val icon = if (gestureHudType == "brightness") {
+                            Icons.Default.BrightnessMedium
+                        } else {
+                            if (gestureHudValue > 0.5f) Icons.Default.VolumeUp
+                            else if (gestureHudValue > 0f) Icons.Default.VolumeDown
+                            else Icons.Default.VolumeMute
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = CrunchyOrange,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        LinearProgressIndicator(
+                            progress = { gestureHudValue },
+                            color = CrunchyOrange,
+                            trackColor = Color.White.copy(alpha = 0.25f),
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                        )
+                        Text(
+                            text = "${(gestureHudValue * 100).toInt()}%",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // 6. Error Overlay with Retry Button
         if (streamError != null) {
             Box(
                 modifier = Modifier
@@ -426,7 +645,7 @@ fun PlayerScreen(
             }
         }
 
-        // 4. AniSkip Floating Pill Button (Lewati Intro / Outro)
+        // 7. AniSkip Floating Pill Button (Lewati Intro / Outro)
         val curSec = currentPosition / 1000.0
         val intro = resolvedStream?.intro
         val outro = resolvedStream?.outro
@@ -439,7 +658,7 @@ fun PlayerScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 24.dp, bottom = 80.dp)
+                    .padding(end = 24.dp, bottom = 86.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(CrunchyOrange)
                     .clickable {
@@ -452,7 +671,7 @@ fun PlayerScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(
-                    text = if (showSkipIntro) "Lewati Intro >>" else "Lewati Outro >>",
+                    text = if (showSkipIntro) "Lewati Pembuka >>" else "Lewati Penutup >>",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -460,7 +679,7 @@ fun PlayerScreen(
             }
         }
 
-        // 5. Custom Crunchyroll Controls Overlay (HUD)
+        // 8. Custom Crunchyroll Controls Overlay (HUD)
         AnimatedVisibility(
             visible = areControlsVisible,
             enter = fadeIn(),
@@ -471,7 +690,7 @@ fun PlayerScreen(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.55f))
             ) {
-                // Top Header Controls with statusBarsPadding
+                // Top Header Controls
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -482,7 +701,7 @@ fun PlayerScreen(
                             )
                         )
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = {
@@ -498,7 +717,7 @@ fun PlayerScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -506,18 +725,28 @@ fun PlayerScreen(
                             color = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Episode $episode",
+                            text = "Episode $currentEpisode dari $totalEpisodes",
                             color = CrunchyOrange,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
+                    // Episode selector button
+                    IconButton(onClick = { showEpisodeSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.VideoLibrary,
+                            contentDescription = "Daftar Episode",
+                            tint = Color.White
+                        )
+                    }
+
                     // Subtitles selector button
-                    IconButton(onClick = { showSubtitleDialog = true }) {
+                    IconButton(onClick = { showSubtitleSheet = true }) {
                         Icon(
                             imageVector = Icons.Default.Subtitles,
                             contentDescription = "Subtitle",
@@ -526,7 +755,7 @@ fun PlayerScreen(
                     }
 
                     // Speed selector button
-                    IconButton(onClick = { showSpeedDialog = true }) {
+                    IconButton(onClick = { showSpeedSheet = true }) {
                         Icon(
                             imageVector = Icons.Default.Speed,
                             contentDescription = "Kecepatan",
@@ -551,62 +780,80 @@ fun PlayerScreen(
                     }
                 }
 
-                // Center Play/Pause & 10s Seek Controls
-                Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalArrangement = Arrangement.spacedBy(36.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
-                            exoPlayer.seekTo(target)
-                        },
-                        modifier = Modifier.size(48.dp)
+                // Center Play/Pause & 10s Seek Controls (Only when not loading stream)
+                if (!isLoadingStream && streamError == null) {
+                    Row(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalArrangement = Arrangement.spacedBy(36.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Replay10,
-                            contentDescription = "Mundur 10 Detik",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(68.dp)
-                            .clip(CircleShape)
-                            .background(CrunchyOrange)
-                            .clickable {
-                                if (isPlaying) {
-                                    exoPlayer.pause()
-                                } else {
-                                    exoPlayer.play()
-                                }
+                        IconButton(
+                            onClick = {
+                                val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
+                                exoPlayer.seekTo(target)
+                                seekFeedback = SeekFeedback(isForward = false, timestamp = System.currentTimeMillis())
                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Jeda" else "Putar",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
+                            modifier = Modifier.size(52.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Replay10,
+                                contentDescription = "Mundur 10 Detik",
+                                tint = Color.White,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
 
-                    IconButton(
-                        onClick = {
-                            val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
-                            exoPlayer.seekTo(target)
-                        },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Forward10,
-                            contentDescription = "Maju 10 Detik",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
-                        )
+                        // Center Action Button: If rebuffering mid-stream, show spinner; otherwise show Play/Pause
+                        if (isBuffering) {
+                            Box(
+                                modifier = Modifier.size(68.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = CrunchyOrange,
+                                    modifier = Modifier.size(46.dp),
+                                    strokeWidth = 3.5.dp
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .clip(CircleShape)
+                                    .background(CrunchyOrange)
+                                    .clickable {
+                                        if (isPlaying) {
+                                            exoPlayer.pause()
+                                        } else {
+                                            exoPlayer.play()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Jeda" else "Putar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(38.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
+                                exoPlayer.seekTo(target)
+                                seekFeedback = SeekFeedback(isForward = true, timestamp = System.currentTimeMillis())
+                            },
+                            modifier = Modifier.size(52.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Forward10,
+                                contentDescription = "Maju 10 Detik",
+                                tint = Color.White,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
                     }
                 }
 
@@ -621,7 +868,7 @@ fun PlayerScreen(
                             )
                         )
                         .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .padding(horizontal = 18.dp, vertical = 10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -654,27 +901,151 @@ fun PlayerScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
+
+                        // Next Episode Button in Bottom Bar (If not last episode)
+                        if (currentEpisode < totalEpisodes) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            IconButton(
+                                onClick = {
+                                    currentEpisode += 1
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Episode Selanjutnya",
+                                    tint = CrunchyOrange,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Subtitle Selector Dialog
-        if (showSubtitleDialog) {
-            val subs = resolvedStream?.subtitles ?: emptyList()
-            AlertDialog(
-                onDismissRequest = { showSubtitleDialog = false },
+        // 9. Episode Picker Modal Bottom Sheet
+        if (showEpisodeSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showEpisodeSheet = false },
                 containerColor = DarkSurface,
-                title = { Text("Pilih Subtitle", color = TextPrimary, fontWeight = FontWeight.Bold) },
-                text = {
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 12.dp)
+                            .width(36.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.3f))
+                    )
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Pilih Episode",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Episode $currentEpisode dari $totalEpisodes",
+                            fontSize = 12.sp,
+                            color = CrunchyOrange,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 64.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        items(totalEpisodes) { idx ->
+                            val epNum = idx + 1
+                            val isCurrent = epNum == currentEpisode
+                            Box(
+                                modifier = Modifier
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isCurrent) CrunchyOrange else DarkSurfaceVariant)
+                                    .clickable {
+                                        if (epNum != currentEpisode) {
+                                            currentEpisode = epNum
+                                            showEpisodeSheet = false
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$epNum",
+                                    color = if (isCurrent) Color.White else TextPrimary,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+
+        // 10. Subtitle Selector Modal Bottom Sheet
+        if (showSubtitleSheet) {
+            val subs = resolvedStream?.subtitles ?: emptyList()
+            ModalBottomSheet(
+                onDismissRequest = { showSubtitleSheet = false },
+                containerColor = DarkSurface,
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 12.dp)
+                            .width(36.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.3f))
+                    )
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Text(
+                        text = "Pilih Takarir (Subtitle)",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Column {
                         subs.forEachIndexed { idx, track ->
+                            val isSelected = selectedSubtitleIndex == idx
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) DarkSurfaceVariant else Color.Transparent)
                                     .clickable {
                                         selectedSubtitleIndex = idx
-                                        showSubtitleDialog = false
+                                        showSubtitleSheet = false
                                         val mediaItemBuilder = MediaItem.Builder()
                                             .setUri(resolvedStream?.proxiedMasterUrl ?: "")
                                             .setMimeType(MimeTypes.APPLICATION_M3U8)
@@ -692,76 +1063,114 @@ fun PlayerScreen(
                                         exoPlayer.prepare()
                                         exoPlayer.play()
                                     }
-                                    .padding(vertical = 12.dp),
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = track.label,
-                                    color = if (selectedSubtitleIndex == idx) CrunchyOrange else TextPrimary,
-                                    fontSize = 14.sp
+                                    color = if (isSelected) CrunchyOrange else TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
-                                if (selectedSubtitleIndex == idx) {
-                                    Text("Aktif", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Aktif",
+                                        tint = CrunchyOrange,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showSubtitleDialog = false }) {
-                        Text("Tutup", color = CrunchyOrange)
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-            )
+            }
         }
 
-        // Speed Selector Dialog
-        if (showSpeedDialog) {
+        // 11. Playback Speed Selector Modal Bottom Sheet
+        if (showSpeedSheet) {
             val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-            AlertDialog(
-                onDismissRequest = { showSpeedDialog = false },
+            ModalBottomSheet(
+                onDismissRequest = { showSpeedSheet = false },
                 containerColor = DarkSurface,
-                title = { Text("Kecepatan Putar", color = TextPrimary, fontWeight = FontWeight.Bold) },
-                text = {
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 12.dp)
+                            .width(36.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.3f))
+                    )
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Text(
+                        text = "Kecepatan Putar",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Column {
                         speeds.forEach { spd ->
+                            val isSelected = selectedSpeed == spd
+                            val label = if (spd == 1.0f) "1.0x (Normal)" else "${spd}x"
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) DarkSurfaceVariant else Color.Transparent)
                                     .clickable {
                                         selectedSpeed = spd
                                         exoPlayer.playbackParameters = PlaybackParameters(spd)
-                                        showSpeedDialog = false
+                                        showSpeedSheet = false
                                     }
-                                    .padding(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${spd}x",
-                                    color = if (selectedSpeed == spd) CrunchyOrange else TextPrimary,
-                                    fontSize = 14.sp
+                                    text = label,
+                                    color = if (isSelected) CrunchyOrange else TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
-                                if (selectedSpeed == spd) {
-                                    Text("Dipilih", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Dipilih",
+                                        tint = CrunchyOrange,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showSpeedDialog = false }) {
-                        Text("Tutup", color = CrunchyOrange)
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-            )
+            }
         }
     }
 }
 
-private fun formatTime(ms: Long): String {
-    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+private fun formatTime(millis: Long): String {
+    if (millis <= 0) return "00:00"
+    val totalSeconds = millis / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    val hours = minutes / 60
+    return if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes % 60, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
 }

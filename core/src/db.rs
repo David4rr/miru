@@ -326,6 +326,12 @@ impl Database {
         conn.execute("DELETE FROM watch_history", [])?;
         Ok(())
     }
+    pub fn delete_history(&self, slug: &str) -> Result<()> {
+        let conn = self.conn.lock();
+        conn.execute("DELETE FROM watch_history WHERE slug = ?1", params![slug])?;
+        Ok(())
+    }
+
 
     // -------------------------------------------------------------
     // Watch Progress

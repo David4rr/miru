@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +28,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -57,6 +59,18 @@ fun HeroBannerCarousel(
 
     val pagerState = rememberPagerState(pageCount = { items.size })
 
+    // Auto-scroll every 5 seconds if user is not actively dragging
+    LaunchedEffect(pagerState, items.size) {
+        if (items.size > 1) {
+            while (true) {
+                delay(5000)
+                if (!pagerState.isScrollInProgress) {
+                    val nextPage = (pagerState.currentPage + 1) % items.size
+                    pagerState.animateScrollToPage(nextPage)
+                }
+            }
+        }
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -240,21 +254,27 @@ fun HeroBannerCarousel(
             }
         }
 
-        // Dot Page Indicators
+        // Animated Pill Page Indicators
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(items.size) { iteration ->
                 val isSelected = pagerState.currentPage == iteration
+                val width = animateDpAsState(
+                    targetValue = if (isSelected) 20.dp else 6.dp,
+                    label = "indicator_width"
+                )
                 Box(
                     modifier = Modifier
-                        .size(if (isSelected) 8.dp else 6.dp)
+                        .height(6.dp)
+                        .width(width.value)
                         .clip(CircleShape)
                         .background(
-                            if (isSelected) CrunchyOrange else Color.White.copy(alpha = 0.3f)
+                            if (isSelected) CrunchyOrange else Color.White.copy(alpha = 0.35f)
                         )
                 )
             }

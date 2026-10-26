@@ -223,6 +223,26 @@ object ApiClient {
             client.newCall(request).execute().close()
         }
     }
+    suspend fun deleteHistory(slug: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/history/$slug")
+                .delete()
+                .build()
+            client.newCall(request).execute().close()
+        }
+    }
+
+    suspend fun clearHistory(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/history")
+                .delete()
+                .build()
+            client.newCall(request).execute().close()
+        }
+    }
+
 
     suspend fun saveProgress(slug: String, episode: Int, progress: Int, duration: Int): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {

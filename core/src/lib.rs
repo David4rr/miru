@@ -41,8 +41,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/player/video", get(proxy::proxy_video_handler))
         .route("/api/player/sub", get(sub_handler))
         .route("/api/player/skip_times", get(skip_times_handler))
-        .route("/api/history", get(get_history_handler).post(add_history_handler))
-        .route("/api/progress", post(save_progress_handler).get(get_progress_handler))
+        .route("/api/history", get(get_history_handler).post(add_history_handler).delete(clear_history_handler))
+        .route("/api/history/:slug", delete(delete_history_item_handler))
         .route("/api/bookmarks", get(get_bookmarks_handler).post(add_bookmark_handler))
         .route("/api/bookmarks/:slug", delete(remove_bookmark_handler))
         .layer(CorsLayer::permissive())
@@ -185,6 +185,29 @@ async fn add_history_handler(
         ).into_response(),
     }
 }
+async fn delete_history_item_handler(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> Response {
+    match state.db.delete_history(&slug) {
+        Ok(_) => Json(json!({ "success": true })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+async fn clear_history_handler(State(state): State<AppState>) -> Response {
+    match state.db.clear_history() {
+        Ok(_) => Json(json!({ "success": true })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
 
 #[derive(Debug, Deserialize)]
 struct ProgressPayload {
