@@ -234,6 +234,19 @@ pub async fn resolve_stream(
             urlencoding::encode(&cached.referer)
         );
 
+        let proxied_subtitles = cached.subtitles.into_iter().map(|mut s| {
+            if !s.url.starts_with("http://127.0.0.1:8767") {
+                let is_id = s.lang == "id" || s.label.contains("Indonesia");
+                let sub_mode = if is_id { "gtx+" } else { "raw" };
+                s.url = format!(
+                    "http://127.0.0.1:8767/api/player/sub?url={}&mode={}",
+                    urlencoding::encode(&s.url),
+                    sub_mode
+                );
+            }
+            s
+        }).collect();
+
         return Ok(ResolvedStream {
             slug: cached.slug,
             episode: cached.ep,
@@ -241,7 +254,7 @@ pub async fn resolve_stream(
             master: cached.master,
             referer: cached.referer,
             server: cached.server,
-            subtitles: cached.subtitles,
+            subtitles: proxied_subtitles,
             intro: cached.intro,
             outro: cached.outro,
             proxied_master_url: proxied,
@@ -291,7 +304,7 @@ pub async fn resolve_stream(
         (SkipInterval { start: 0.0, end: 0.0 }, SkipInterval { start: 0.0, end: 0.0 })
     };
 
-    // 5. Indonesian Subtitle Handling
+    // 5. Indonesian Subtitle Handling & Local Proxy Rewriting
     let has_indo = subtitles.iter().any(|s| {
         let l = s.lang.to_lowercase();
         let lb = s.label.to_lowercase();
@@ -305,7 +318,11 @@ pub async fn resolve_stream(
             let lb = s.label.to_lowercase();
             l == "en" || lb.contains("english")
         }) {
-            let translated_url = format!("/api/player/sub?url={}&mode=gtx+", urlencoding::encode(&eng_sub.url));
+            let raw_eng_url = eng_sub.url.clone();
+            let translated_url = format!(
+                "http://127.0.0.1:8767/api/player/sub?url={}&mode=gtx+",
+                urlencoding::encode(&raw_eng_url)
+            );
             subtitles.insert(0, SubtitleTrack {
                 label: "Indonesia (Otomatis)".to_string(),
                 lang: "id".to_string(),
@@ -313,16 +330,22 @@ pub async fn resolve_stream(
                 default: true,
             });
         }
-    } else {
-        // Mark Indonesian as default
-        for s in &mut subtitles {
-            let l = s.lang.to_lowercase();
-            let lb = s.label.to_lowercase();
-            if l == "id" || l == "ind" || lb.contains("indonesia") {
-                s.default = true;
-            } else {
-                s.default = false;
-            }
+    }
+
+    // Ensure EVERY subtitle URL points to the local daemon proxy on 127.0.0.1:8767
+    for s in &mut subtitles {
+        let l = s.lang.to_lowercase();
+        let lb = s.label.to_lowercase();
+        let is_id = l == "id" || l == "ind" || lb.contains("indonesia");
+        s.default = is_id;
+
+        if !s.url.starts_with("http://127.0.0.1:8767") {
+            let sub_mode = if is_id { "gtx+" } else { "raw" };
+            s.url = format!(
+                "http://127.0.0.1:8767/api/player/sub?url={}&mode={}",
+                urlencoding::encode(&s.url),
+                sub_mode
+            );
         }
     }
 

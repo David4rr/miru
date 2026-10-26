@@ -93,12 +93,19 @@ pub async fn get_or_translate_vtt(
     }
 
     // 2. Fetch original WebVTT from upstream with spoofed referer
-    let mut req = HTTP_CLIENT.get(url).header("User-Agent", "Mozilla/5.0");
-    if url.contains("dramahot") || url.contains("zokoanime") || url.contains("drama") {
-        req = req.header("Referer", "https://zokoanime.video/");
-    }
-    let raw_vtt = req.send().await?.text().await?;
-
+    let referer = if url.contains("hianime") {
+        "https://hianime.at/"
+    } else {
+        "https://zokoanime.video/"
+    };
+    let req = HTTP_CLIENT
+        .get(url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("Referer", referer);
+    let raw_vtt = match req.send().await {
+        Ok(res) if res.status().is_success() => res.text().await.unwrap_or_else(|_| "WEBVTT\n\n".to_string()),
+        _ => return Ok("WEBVTT\n\n".to_string()),
+    };
     if mode == "raw" || !mode.contains("gtx") {
         let _ = db.set_subtitle_cache(&cache_key, &raw_vtt);
         return Ok(raw_vtt);

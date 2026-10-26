@@ -12,7 +12,7 @@ use std::time::Duration;
 
 static PROXY_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
-        .timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(45))
         .build()
         .expect("Failed to initialize proxy reqwest client")
 });
@@ -31,11 +31,11 @@ pub fn is_m3u8(url: &str) -> bool {
 }
 
 pub fn rewrite_m3u8(content: &str, base_url: &str, referer: &str) -> String {
+    let parsed_base = reqwest::Url::parse(base_url).ok();
     let base = match base_url.rsplit_once('/') {
         Some((prefix, _)) => format!("{}/", prefix),
         None => base_url.to_string(),
     };
-
     let re_codecs = regex::Regex::new(r#"CODECS="([^"]+)""#).unwrap();
     let re_uri = regex::Regex::new(r#"URI=(?:"([^"]+)"|'([^']+)'|([^,\s]+))"#).unwrap();
 
@@ -65,7 +65,9 @@ pub fn rewrite_m3u8(content: &str, base_url: &str, referer: &str) -> String {
             if trimmed.contains("URI=") {
                 let rewritten = re_uri.replace_all(trimmed, |caps: &regex::Captures| {
                     let raw_uri = caps.get(1).or_else(|| caps.get(2)).or_else(|| caps.get(3)).map(|m| m.as_str()).unwrap_or("");
-                    let abs_url = if raw_uri.starts_with("http://") || raw_uri.starts_with("https://") {
+                    let abs_url = if let Some(base_u) = &parsed_base {
+                        base_u.join(raw_uri).map(|u| u.to_string()).unwrap_or_else(|_| raw_uri.to_string())
+                    } else if raw_uri.starts_with("http://") || raw_uri.starts_with("https://") {
                         raw_uri.to_string()
                     } else {
                         format!("{}{}", base, raw_uri)
@@ -84,7 +86,9 @@ pub fn rewrite_m3u8(content: &str, base_url: &str, referer: &str) -> String {
         }
 
         // Line is a video segment or playlist variant URL
-        let abs_url = if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        let abs_url = if let Some(base_u) = &parsed_base {
+            base_u.join(trimmed).map(|u| u.to_string()).unwrap_or_else(|_| trimmed.to_string())
+        } else if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
             trimmed.to_string()
         } else {
             format!("{}{}", base, trimmed)
@@ -100,20 +104,30 @@ pub fn rewrite_m3u8(content: &str, base_url: &str, referer: &str) -> String {
     out.join("\n")
 }
 
-pub async fn proxy_video_handler(Query(params): Query<VideoProxyParams>) -> Response {
+pub async fn proxy_video_handler(
+    client_headers: HeaderMap,
+    Query(params): Query<VideoProxyParams>,
+) -> Response {
     let url = params.url;
     let referer = params.referer.unwrap_or_default();
-
-    let host = reqwest::Url::parse(&url)
-        .ok()
-        .and_then(|u| u.host_str().map(|h| h.to_string()))
-        .unwrap_or_default();
+    let effective_referer = if !referer.is_empty() {
+        referer
+    } else if url.contains("drama") || url.contains("zoko") {
+        "https://zokoanime.video/".to_string()
+    } else {
+        "https://hianime.at/".to_string()
+    };
 
     // High performance HTTP/2 streaming via PROXY_CLIENT
-    let mut req = PROXY_CLIENT.get(&url).header("User-Agent", USER_AGENT);
-    if !referer.is_empty() {
-        req = req.header("Referer", &referer);
+    let mut req = PROXY_CLIENT
+        .get(&url)
+        .header("User-Agent", USER_AGENT)
+        .header("Referer", &effective_referer);
+
+    if let Some(range) = client_headers.get(header::RANGE) {
+        req = req.header(header::RANGE, range);
     }
+
     let upstream = match req.send().await {
         Ok(res) => res,
         Err(err) => {
@@ -127,10 +141,17 @@ pub async fn proxy_video_handler(Query(params): Query<VideoProxyParams>) -> Resp
     let status = upstream.status();
 
     if is_m3u8(&url) {
+        if !status.is_success() {
+            return (
+                status,
+                format!("Upstream M3U8 returned HTTP {}", status),
+            ).into_response();
+        }
+
         // Read full M3U8 manifest and rewrite segment URLs
         match upstream.text().await {
             Ok(body_text) => {
-                let rewritten = rewrite_m3u8(&body_text, &url, &referer);
+                let rewritten = rewrite_m3u8(&body_text, &url, &effective_referer);
                 (
                     StatusCode::OK,
                     [

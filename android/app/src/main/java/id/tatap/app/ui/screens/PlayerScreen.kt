@@ -82,8 +82,11 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import id.tatap.app.data.AnimeCard
 import id.tatap.app.data.ApiClient
@@ -158,7 +161,16 @@ fun PlayerScreen(
             )
             .build()
 
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+            .setConnectTimeoutMs(20000)
+            .setReadTimeoutMs(45000)
+            .setAllowCrossProtocolRedirects(true)
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
+
         ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .build().apply {
                 playWhenReady = true
@@ -203,16 +215,16 @@ fun PlayerScreen(
                         .setUri(res.proxiedMasterUrl)
                         .setMimeType(MimeTypes.APPLICATION_M3U8)
 
-                    // Add subtitles without blocking video playback initialization
-                    if (res.subtitles.isNotEmpty()) {
-                        val subtitleConfigs = res.subtitles.map { subTrack ->
-                            MediaItem.SubtitleConfiguration.Builder(Uri.parse(subTrack.url))
-                                .setMimeType(MimeTypes.TEXT_VTT)
-                                .setLanguage(subTrack.lang)
-                                .setLabel(subTrack.label)
-                                .build()
-                        }
-                        mediaItemBuilder.setSubtitleConfigurations(subtitleConfigs)
+                    // Only attach the default / active subtitle track initially to prevent socket starvation
+                    val defaultSub = res.subtitles.firstOrNull { it.default } ?: res.subtitles.firstOrNull()
+                    if (defaultSub != null && defaultSub.url.isNotBlank()) {
+                        val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(defaultSub.url))
+                            .setMimeType(MimeTypes.TEXT_VTT)
+                            .setLanguage(defaultSub.lang)
+                            .setLabel(defaultSub.label)
+                            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                            .build()
+                        mediaItemBuilder.setSubtitleConfigurations(listOf(subtitleConfig))
                     }
 
                     exoPlayer.setMediaItem(mediaItemBuilder.build())
@@ -261,7 +273,16 @@ fun PlayerScreen(
             override fun onPlayerError(error: PlaybackException) {
                 isBuffering = false
                 isLoadingStream = false
-                streamError = "Gagal memutar video (${error.errorCodeName}): ${error.localizedMessage ?: "Format video tidak didukung"}"
+                val httpCause = generateSequence(error.cause) { it.cause }
+                    .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+                    .firstOrNull()
+
+                val detail = if (httpCause != null) {
+                    "HTTP ${httpCause.responseCode} (${httpCause.dataSpec.uri})"
+                } else {
+                    error.localizedMessage ?: "Format video tidak didukung"
+                }
+                streamError = "Gagal memutar video (${error.errorCodeName}): $detail"
             }
         }
         exoPlayer.addListener(listener)

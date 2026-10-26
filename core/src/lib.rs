@@ -127,20 +127,18 @@ async fn sub_handler(
     Query(params): Query<SubParams>,
 ) -> Response {
     let mode = params.mode.unwrap_or_else(|| "gtx+".to_string());
-    match api::sub::get_or_translate_vtt(&params.url, &mode, &state.db).await {
-        Ok(vtt_text) => (
-            StatusCode::OK,
-            [
-                (header::CONTENT_TYPE, "text/vtt; charset=utf-8"),
-                (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-            ],
-            vtt_text,
-        ).into_response(),
-        Err(err) => (
-            StatusCode::BAD_GATEWAY,
-            format!("Subtitle error: {}", err),
-        ).into_response(),
-    }
+    let vtt_text = match api::sub::get_or_translate_vtt(&params.url, &mode, &state.db).await {
+        Ok(t) => t,
+        Err(_) => "WEBVTT\n\n".to_string(),
+    };
+    (
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "text/vtt; charset=utf-8"),
+            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+        ],
+        vtt_text,
+    ).into_response()
 }
 
 #[derive(Debug, Deserialize)]
