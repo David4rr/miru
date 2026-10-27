@@ -54,7 +54,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.miru.app.data.AppRelease
@@ -806,22 +805,13 @@ fun FormattedChangelogContent(
                             val desc = match.groupValues[2]
                             Text(
                                 text = androidx.compose.ui.text.buildAnnotatedString {
-                                    androidx.compose.ui.text.withStyle(
-                                        androidx.compose.ui.text.SpanStyle(
-                                            color = TextPrimary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    ) {
-                                        append(title)
-                                        if (desc.isNotEmpty()) append(": ")
-                                    }
-                                    androidx.compose.ui.text.withStyle(
-                                        androidx.compose.ui.text.SpanStyle(
-                                            color = TextSecondary
-                                        )
-                                    ) {
-                                        append(desc)
-                                    }
+                                    pushStyle(androidx.compose.ui.text.SpanStyle(color = TextPrimary, fontWeight = FontWeight.SemiBold))
+                                    append(title)
+                                    if (desc.isNotEmpty()) append(": ")
+                                    pop()
+                                    pushStyle(androidx.compose.ui.text.SpanStyle(color = TextSecondary))
+                                    append(desc)
+                                    pop()
                                 },
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp
