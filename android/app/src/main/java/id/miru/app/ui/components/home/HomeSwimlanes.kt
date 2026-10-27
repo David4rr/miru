@@ -73,7 +73,7 @@ fun LazyListScope.homeCatalogSwimlanes(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 itemsIndexed(catalog.topAiring) { idx, anime ->
-                    AnimePosterCard(anime = anime, onClick = onAnimeClick, rankBadge = if (idx < 3) "#${idx + 1}" else null)
+                    AnimePosterCard(anime = anime, onClick = onAnimeClick, rank = if (idx < 3) idx + 1 else null)
                 }
             }
         }

@@ -71,7 +71,7 @@ fun DetailScreen(
     }
     val currentProgress = if (isLastEpFinished) 0 else lastProgress
 
-    val rawSynopsis = anime.cleanSynopsis
+    val rawSynopsis = anime.cleanSynopsis ?: "Belum ada sinopsis resmi untuk anime ini."
     val currentSynopsis = if (showOriginalSynopsis || translatedSynopsis == null) rawSynopsis else translatedSynopsis!!
 
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
@@ -90,7 +90,7 @@ fun DetailScreen(
                             if (willBeBookmarked) {
                                 ApiClient.addBookmark(BookmarkItem(slug = anime.slug, title = anime.title, poster = anime.poster, type = anime.status ?: "ANIME"))
                             } else {
-                                ApiClient.deleteBookmark(anime.slug)
+                                ApiClient.removeBookmark(anime.slug)
                             }
                         }
                     },

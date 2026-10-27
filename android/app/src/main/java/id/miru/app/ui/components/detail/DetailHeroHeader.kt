@@ -100,20 +100,16 @@ fun DetailHeroHeader(
         Spacer(modifier = Modifier.height(10.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            anime.score?.let { s ->
+            if (anime.score != null && anime.score > 0.0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = String.format("%.1f", s / 10.0), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(text = anime.displayScore, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
                 }
             }
             Text(text = anime.displayStatus, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (anime.isNotYetReleased) Color(0xFFFFA726) else CrunchyOrange)
-            anime.format?.let { fmt ->
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = fmt, fontSize = 12.sp, color = TextMuted)
-            }
-            anime.year?.let { yr ->
+            anime.seasonYear?.let { yr ->
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(text = yr.toString(), fontSize = 12.sp, color = TextMuted)
             }

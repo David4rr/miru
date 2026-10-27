@@ -3,6 +3,7 @@ package id.miru.app.ui.screens
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +33,8 @@ import id.miru.app.ui.components.player.saveWatchProgressAsync
 import id.miru.app.ui.theme.DarkBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+@Composable
 fun PlayerScreen(
     anime: AnimeCard,
     episode: Int,
