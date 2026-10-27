@@ -1,4 +1,3 @@
-use crate::net::desync::{is_dpi_blocked_host, send_desync_http_get};
 use axum::{
     body::Body,
     extract::Query,

@@ -16,7 +16,7 @@ static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .expect("Failed to initialize reqwest client")
 });
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimeCard {
     pub id: i64,
     pub id_mal: Option<i64>,
