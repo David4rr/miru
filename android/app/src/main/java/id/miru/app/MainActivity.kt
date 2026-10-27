@@ -1,4 +1,4 @@
-package id.tatap.app
+package id.miru.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,30 +29,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import id.tatap.app.data.AnimeCard
-import id.tatap.app.data.AppRelease
-import id.tatap.app.data.UpdateManager
-import id.tatap.app.ui.components.UpdateAvailableBottomSheet
-import id.tatap.app.ui.components.UpdateBanner
-import id.tatap.app.ui.screens.DetailScreen
-import id.tatap.app.ui.screens.HomeScreen
-import id.tatap.app.ui.screens.LibraryScreen
-import id.tatap.app.ui.screens.PlayerScreen
-import id.tatap.app.ui.screens.SearchScreen
-import id.tatap.app.ui.screens.ScheduleScreen
-import id.tatap.app.ui.screens.SettingsScreen
-import id.tatap.app.ui.theme.CrunchyrollOrange
-import id.tatap.app.ui.theme.DarkOled
-import id.tatap.app.ui.theme.SurfaceDark
-import id.tatap.app.ui.theme.TatapTheme
-import id.tatap.app.ui.theme.TextMuted
+import id.miru.app.data.AnimeCard
+import id.miru.app.data.AppRelease
+import id.miru.app.data.UpdateManager
+import id.miru.app.ui.components.UpdateAvailableBottomSheet
+import id.miru.app.ui.components.UpdateBanner
+import id.miru.app.ui.components.ModernFloatingNavBar
+import id.miru.app.ui.screens.DetailScreen
+import id.miru.app.ui.screens.HomeScreen
+import id.miru.app.ui.screens.LibraryScreen
+import id.miru.app.ui.screens.PlayerScreen
+import id.miru.app.ui.screens.SearchScreen
+import id.miru.app.ui.screens.ScheduleScreen
+import id.miru.app.ui.screens.SettingsScreen
+import id.miru.app.ui.theme.CrunchyrollOrange
+import id.miru.app.ui.theme.DarkOled
+import id.miru.app.ui.theme.SurfaceDark
+import id.miru.app.ui.theme.MiruTheme
+import id.miru.app.ui.theme.TextMuted
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            TatapTheme {
+            MiruTheme {
                 MainApp()
             }
         }
@@ -117,34 +118,12 @@ fun MainApp() {
         // 3. Main Bottom Navigation Screens
         else -> {
             Scaffold(
+                containerColor = DarkOled,
                 bottomBar = {
-                    NavigationBar(
-                        containerColor = SurfaceDark,
-                        contentColor = Color.White
-                    ) {
-                        val tabs = listOf(
-                            Triple("Beranda", Icons.Default.Home, 0),
-                            Triple("Cari", Icons.Default.Search, 1),
-                            Triple("Koleksi", Icons.Default.VideoLibrary, 2),
-                            Triple("Pengaturan", Icons.Default.Settings, 3)
-                        )
-
-                        tabs.forEach { (title, icon, index) ->
-                            NavigationBarItem(
-                                icon = { Icon(icon, contentDescription = title) },
-                                label = { Text(title) },
-                                selected = selectedTab == index,
-                                onClick = { selectedTab = index },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = CrunchyrollOrange,
-                                    selectedTextColor = CrunchyrollOrange,
-                                    indicatorColor = SurfaceDark,
-                                    unselectedIconColor = TextMuted,
-                                    unselectedTextColor = TextMuted
-                                )
-                            )
-                        }
-                    }
+                    ModernFloatingNavBar(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it }
+                    )
                 }
             ) { innerPadding ->
                 if (showUpdateSheet && availableUpdate != null) {

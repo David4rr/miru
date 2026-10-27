@@ -1,4 +1,4 @@
-package id.tatap.app.ui.screens
+package id.miru.app.ui.screens
 
 import android.app.Activity
 import android.content.Context
@@ -40,9 +40,12 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -54,6 +57,8 @@ import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -104,19 +109,19 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
-import id.tatap.app.data.AnimeCard
-import id.tatap.app.data.ApiClient
-import id.tatap.app.data.ResolvedStream
-import id.tatap.app.data.WatchHistoryItem
-import id.tatap.app.data.WatchProgressItem
-import id.tatap.app.ui.components.OrangeButton
-import id.tatap.app.ui.components.ReportIssueBottomSheet
-import id.tatap.app.ui.theme.CrunchyOrange
-import id.tatap.app.ui.theme.DarkBackground
-import id.tatap.app.ui.theme.DarkSurface
-import id.tatap.app.ui.theme.DarkSurfaceVariant
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
+import id.miru.app.data.AnimeCard
+import id.miru.app.data.ApiClient
+import id.miru.app.data.ResolvedStream
+import id.miru.app.data.WatchHistoryItem
+import id.miru.app.data.WatchProgressItem
+import id.miru.app.ui.components.OrangeButton
+import id.miru.app.ui.components.ReportIssueBottomSheet
+import id.miru.app.ui.theme.CrunchyOrange
+import id.miru.app.ui.theme.DarkBackground
+import id.miru.app.ui.theme.DarkSurface
+import id.miru.app.ui.theme.DarkSurfaceVariant
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -156,6 +161,11 @@ fun PlayerScreen(
     var showReportSheet by remember { mutableStateOf(false) }
     var selectedSubtitleIndex by remember { mutableStateOf(0) }
 
+    var isScreenLocked by remember { mutableStateOf(false) }
+    var showUnlockButton by remember { mutableStateOf(false) }
+    var isAutoSkipEnabled by remember { mutableStateOf(true) }
+    var autoSkippedIntroByThisEp by remember(currentEpisode) { mutableStateOf(false) }
+    var autoSkipNotice by remember { mutableStateOf<String?>(null) }
     // Double-tap seek visual feedback
     var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
 
@@ -178,6 +188,19 @@ fun PlayerScreen(
         if (seekFeedback != null) {
             delay(750)
             seekFeedback = null
+        }
+    }
+    LaunchedEffect(autoSkipNotice) {
+        if (autoSkipNotice != null) {
+            delay(2400)
+            autoSkipNotice = null
+        }
+    }
+
+    LaunchedEffect(showUnlockButton) {
+        if (showUnlockButton && isScreenLocked) {
+            delay(3000)
+            showUnlockButton = false
         }
     }
 
@@ -334,18 +357,31 @@ fun PlayerScreen(
     }
 
     // Periodic progress poller
-    LaunchedEffect(exoPlayer) {
+    LaunchedEffect(exoPlayer, isAutoSkipEnabled, resolvedStream, autoSkippedIntroByThisEp) {
         var tick = 0
         while (true) {
             currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
             if (duration <= 0 && exoPlayer.duration > 0) {
                 duration = exoPlayer.duration
             }
+
+            // Auto-skip intro
+            if (isAutoSkipEnabled && isPlaying && !autoSkippedIntroByThisEp) {
+                val intro = resolvedStream?.intro
+                val curSec = currentPosition / 1000.0
+                if (intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 1.0)) {
+                    val skipTargetMs = ((intro.end + 0.5) * 1000).toLong()
+                    exoPlayer.seekTo(skipTargetMs)
+                    autoSkippedIntroByThisEp = true
+                    autoSkipNotice = "⏩ Lewati Intro Otomatis (+${(intro.end - intro.start).toInt()}d)"
+                }
+            }
+
             tick++
             if (tick % 10 == 0 && isPlaying) {
                 saveProgressNow()
             }
-            delay(500)
+            delay(400)
         }
     }
 
@@ -394,61 +430,70 @@ fun PlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            areControlsVisible = !areControlsVisible
-                        },
-                        onDoubleTap = { offset ->
-                            val screenWidth = size.width
-                            if (offset.x < screenWidth / 2) {
-                                val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
-                                exoPlayer.seekTo(target)
-                                seekFeedback = SeekFeedback(isForward = false, timestamp = System.currentTimeMillis())
-                            } else {
-                                val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
-                                exoPlayer.seekTo(target)
-                                seekFeedback = SeekFeedback(isForward = true, timestamp = System.currentTimeMillis())
+                .pointerInput(isScreenLocked) {
+                    if (isScreenLocked) {
+                        detectTapGestures(
+                            onTap = {
+                                showUnlockButton = !showUnlockButton
                             }
-                        }
-                    )
+                        )
+                    } else {
+                        detectTapGestures(
+                            onTap = {
+                                areControlsVisible = !areControlsVisible
+                            },
+                            onDoubleTap = { offset ->
+                                val screenWidth = size.width
+                                if (offset.x < screenWidth / 2) {
+                                    val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0)
+                                    exoPlayer.seekTo(target)
+                                    seekFeedback = SeekFeedback(isForward = false, timestamp = System.currentTimeMillis())
+                                } else {
+                                    val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
+                                    exoPlayer.seekTo(target)
+                                    seekFeedback = SeekFeedback(isForward = true, timestamp = System.currentTimeMillis())
+                                }
+                            }
+                        )
+                    }
                 }
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { change, dragAmount ->
-                            change.consume()
-                            val isLeft = change.position.x < size.width / 2
-                            if (isLeft) {
-                                // Screen Brightness adjustment
-                                val win = window
-                                if (win != null) {
-                                    val currentBrightness = if (win.attributes.screenBrightness < 0) 0.5f else win.attributes.screenBrightness
-                                    val delta = -dragAmount / 450f
-                                    val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
-                                    val lp = win.attributes
-                                    lp.screenBrightness = newBrightness
-                                    win.attributes = lp
-                                    gestureHudType = "brightness"
-                                    gestureHudValue = newBrightness
-                                    gestureHudTimestamp = System.currentTimeMillis()
-                                }
-                            } else {
-                                // Audio Volume adjustment
-                                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                val delta = if (dragAmount < -10) 1 else if (dragAmount > 10) -1 else 0
-                                if (delta != 0) {
-                                    val newVol = (currentVol + delta).coerceIn(0, maxAudioVolume)
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                    gestureHudType = "volume"
-                                    gestureHudValue = newVol.toFloat() / maxAudioVolume.toFloat()
-                                    gestureHudTimestamp = System.currentTimeMillis()
+                .pointerInput(isScreenLocked) {
+                    if (!isScreenLocked) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                val isLeft = change.position.x < size.width / 2
+                                if (isLeft) {
+                                    // Screen Brightness adjustment
+                                    val win = window
+                                    if (win != null) {
+                                        val currentBrightness = if (win.attributes.screenBrightness < 0) 0.5f else win.attributes.screenBrightness
+                                        val delta = -dragAmount / 450f
+                                        val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
+                                        val lp = win.attributes
+                                        lp.screenBrightness = newBrightness
+                                        win.attributes = lp
+                                        gestureHudType = "brightness"
+                                        gestureHudValue = newBrightness
+                                        gestureHudTimestamp = System.currentTimeMillis()
+                                    }
+                                } else {
+                                    // Audio Volume adjustment
+                                    val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                    val delta = if (dragAmount < -10) 1 else if (dragAmount > 10) -1 else 0
+                                    if (delta != 0) {
+                                        val newVol = (currentVol + delta).coerceIn(0, maxAudioVolume)
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                        gestureHudType = "volume"
+                                        gestureHudValue = newVol.toFloat() / maxAudioVolume.toFloat()
+                                        gestureHudTimestamp = System.currentTimeMillis()
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
         )
-
         // 2. Loading Stream State (Clean, centered card without overlapping play button)
         if (isLoadingStream && streamError == null) {
             Box(
@@ -699,6 +744,63 @@ fun PlayerScreen(
                 )
             }
         }
+        // Screen Lock Center Unlock Button
+        if (isScreenLocked) {
+            AnimatedVisibility(
+                visible = showUnlockButton,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Button(
+                    onClick = {
+                        isScreenLocked = false
+                        showUnlockButton = false
+                        areControlsVisible = true
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CrunchyOrange,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LockOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Buka Kunci Layar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
+
+        // Auto-Skip Toast Notification Pill
+        AnimatedVisibility(
+            visible = autoSkipNotice != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .border(1.dp, CrunchyOrange.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = autoSkipNotice.orEmpty(),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
 
         // 8. Custom Crunchyroll Controls Overlay (HUD)
         AnimatedVisibility(
@@ -780,6 +882,30 @@ fun PlayerScreen(
                         Icon(
                             imageVector = Icons.Default.Speed,
                             contentDescription = "Kecepatan",
+                            tint = Color.White
+                        )
+                    }
+                    // Auto Skip Toggle button
+                    IconButton(onClick = {
+                        isAutoSkipEnabled = !isAutoSkipEnabled
+                        autoSkipNotice = if (isAutoSkipEnabled) "Auto Skip: Aktif" else "Auto Skip: Nonaktif"
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = "Auto Skip",
+                            tint = if (isAutoSkipEnabled) CrunchyOrange else Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+
+                    // Screen Lock button
+                    IconButton(onClick = {
+                        isScreenLocked = true
+                        areControlsVisible = false
+                        showUnlockButton = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Kunci Layar",
                             tint = Color.White
                         )
                     }

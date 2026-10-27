@@ -1,4 +1,4 @@
-package id.tatap.app.data
+package id.miru.app.data
 
 data class AnimeCard(
     val id: Long,
@@ -19,12 +19,67 @@ data class AnimeCard(
     val displayScore: String
         get() = score?.let { String.format("%.1f", it) } ?: "N/A"
 
+    val isNotYetReleased: Boolean
+        get() = status.equals("NOT_YET_RELEASED", ignoreCase = true)
+
+    val isFinished: Boolean
+        get() = status.equals("FINISHED", ignoreCase = true)
+
+    val isReleasing: Boolean
+        get() = status.equals("RELEASING", ignoreCase = true)
+
+    val displayStatus: String
+        get() = when {
+            status.equals("NOT_YET_RELEASED", ignoreCase = true) -> "Belum Rilis"
+            status.equals("RELEASING", ignoreCase = true) -> "Sedang Tayang"
+            status.equals("FINISHED", ignoreCase = true) -> "Tamat"
+            status.equals("CANCELLED", ignoreCase = true) -> "Dibatalkan"
+            status.equals("HIATUS", ignoreCase = true) -> "Hiatus"
+            status != null -> status
+            else -> "Sedang Tayang"
+        }
+
     val displayEpisodes: String
         get() = when {
+            isNotYetReleased -> "Segera Tayang"
             episodes != null && episodes > 0 -> "$episodes Eps"
             episodesReleased != null && episodesReleased > 0 -> "Ep $episodesReleased"
-            else -> "Ongoing"
+            isFinished -> "Tamat"
+            else -> "Sedang Tayang"
         }
+
+    val displayGenres: List<String>
+        get() = genres.map { translateGenre(it) }
+
+    val cleanSynopsis: String?
+        get() = synopsis?.let { raw ->
+            val withoutBr = raw.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
+            withoutBr.replace(Regex("<[^>]+>"), "").trim()
+        }
+
+    companion object {
+        fun translateGenre(genre: String): String {
+            return when (genre.trim().lowercase()) {
+                "action" -> "Aksi"
+                "adventure" -> "Petualangan"
+                "comedy" -> "Komedi"
+                "drama" -> "Drama"
+                "fantasy" -> "Fantasi"
+                "horror" -> "Horor"
+                "mystery" -> "Misteri"
+                "psychological" -> "Psikologis"
+                "romance" -> "Romantis"
+                "sci-fi" -> "Fiksi Ilmiah"
+                "slice of life" -> "Seputar Kehidupan"
+                "sports" -> "Olahraga"
+                "supernatural" -> "Supranatural"
+                "thriller" -> "Cerita Seru"
+                "mecha" -> "Mecha"
+                "music" -> "Musik"
+                else -> genre
+            }
+        }
+    }
 }
 
 data class ScheduleItem(

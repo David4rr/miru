@@ -1,4 +1,4 @@
-package id.tatap.app.data
+package id.miru.app.data
 
 import android.content.Context
 import android.content.Intent
@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
-import id.tatap.app.BuildConfig
+import id.miru.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -52,7 +52,7 @@ object UpdateManager {
             val request = Request.Builder()
                 .url(API_LATEST)
                 .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "Tatap-Android-App")
+                .header("User-Agent", "Miru-Android-App")
                 .get()
                 .build()
 
@@ -139,7 +139,7 @@ object UpdateManager {
     suspend fun downloadApk(
         context: Context,
         downloadUrl: String,
-        targetFileName: String = "tatap-update.apk",
+        targetFileName: String = "miru-update.apk",
         onProgress: (progress: Float, downloaded: Long, total: Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
@@ -217,6 +217,33 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.0",
+                versionName = "0.2.0",
+                title = "Miru Android v0.2.0 (Brand Renaming, Auto-Skip & Modern Floating Nav)",
+                body = """
+                    ### Miru Android v0.2.0
+
+                    #### 🚀 Identitas Baru & Optimasi Sistem:
+                    - **Rebranding Menjadi Miru:** Bertransisi resmi dari Tatap menjadi Miru (package: id.miru.app, library: libmiru_core.so) untuk identitas yang lebih ringkas, elegan, dan berkarakter.
+                    - **Konsistensi Bahasa Indonesia:** Menerjemahkan seluruh label status (Sedang Tayang, Tamat, Belum Rilis), genre anime, dan musim ke bahasa Indonesia baku.
+                    - **Pembersih & Penerjemah Sinopsis:** Pembersihan tag HTML otomatis serta integrasi fitur terjemahan sinopsis langsung dari Google GTX di dalam layar detail anime.
+
+                    #### 🎬 Pemutar Video & Fitur UX:
+                    - **Auto Skip Intro & Outro (AniSkip):** Video otomatis melompati bagian pembuka (OP) dan penutup (ED) secara otomatis dengan notifikasi visual instan.
+                    - **Kunci Layar (Screen Lock):** Tombol kunci di HUD player untuk mencegah sentuhan tidak sengaja saat menonton anime favorit.
+                    - **Pilihan Kecepatan Cepat:** Pemilih kecepatan pemutaran instan (1.0x, 1.25x, 1.5x, 2.0x) langsung di panel kontrol video.
+
+                    #### 🎨 Antarmuka Modern & Compact:
+                    - **Modern Floating Dock Navigation:** Mengganti bottom navigation bar Material 3 bawaan yang monoton dengan floating dock pill modern, kompak (tinggi 58dp), dan berestetika OLED premium.
+                    - **Penanganan Anime Belum Rilis (Upcoming Bugfix):** Memperbaiki bug episode anime Akan Datang yang memunculkan daftar episode kosong/palsu dan menyebabkan HTTP 500. Kini menampilkan kartu status pra-rilis yang informatif.
+                    - **Format Catatan Rilis Rapi:** Tampilan changelog kini diformat terstruktur dengan tag pill kategori, bullet point bersih, dan teks tebal yang nyaman dibaca.
+                """.trimIndent(),
+                publishedAt = "2026-10-27",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.0/Miru-v0.2.0-release.apk",
+                apkSize = 35900000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.1.6",
                 versionName = "0.1.6",

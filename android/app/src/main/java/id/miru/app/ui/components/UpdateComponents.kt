@@ -1,4 +1,4 @@
-package id.tatap.app.ui.components
+package id.miru.app.ui.components
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -56,17 +56,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import id.tatap.app.data.AppRelease
-import id.tatap.app.data.UpdateDownloadState
-import id.tatap.app.data.UpdateManager
-import id.tatap.app.ui.theme.BorderSubtle
-import id.tatap.app.ui.theme.CrunchyrollOrange
-import id.tatap.app.ui.theme.DarkOled
-import id.tatap.app.ui.theme.SurfaceDark
-import id.tatap.app.ui.theme.SurfaceVariantDark
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
-import id.tatap.app.ui.theme.TextSecondary
+import id.miru.app.data.AppRelease
+import id.miru.app.data.UpdateDownloadState
+import id.miru.app.data.UpdateManager
+import id.miru.app.ui.theme.BorderSubtle
+import id.miru.app.ui.theme.CrunchyrollOrange
+import id.miru.app.ui.theme.DarkOled
+import id.miru.app.ui.theme.SurfaceDark
+import id.miru.app.ui.theme.SurfaceVariantDark
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
+import id.miru.app.ui.theme.TextSecondary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
@@ -332,12 +332,7 @@ fun UpdateAvailableBottomSheet(
                         .padding(14.dp)
                 ) {
                     item {
-                        Text(
-                            text = release.body,
-                            color = TextPrimary.copy(alpha = 0.9f),
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp
-                        )
+                        FormattedChangelogContent(body = release.body)
                     }
                 }
             }
@@ -721,15 +716,134 @@ fun ChangelogModalBottomSheet(
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
-                                Text(
-                                    text = item.body,
-                                    color = TextSecondary,
-                                    fontSize = 12.sp,
-                                    lineHeight = 18.sp
-                                )
+                                FormattedChangelogContent(body = item.body)
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Clean structured changelog renderer that transforms raw markdown headers and bullet points
+ * into attractive OLED-styled section headers, tag pills, and annotated list items.
+ */
+@Composable
+fun FormattedChangelogContent(
+    body: String,
+    modifier: Modifier = Modifier
+) {
+    val lines = remember(body) { body.lines() }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        lines.forEach { rawLine ->
+            val line = rawLine.trim()
+            when {
+                line.isEmpty() -> {
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+                line.startsWith("### ") -> {
+                    val headerText = line.removePrefix("### ").trim()
+                    Text(
+                        text = headerText,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                    )
+                }
+                line.startsWith("#### ") -> {
+                    val sectionText = line.removePrefix("#### ").trim().trimEnd(':')
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp, bottom = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(CrunchyrollOrange)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = sectionText,
+                            color = CrunchyrollOrange,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                line.startsWith("- ") || line.startsWith("* ") -> {
+                    val bulletText = line.substring(2).trim()
+                    val regex = Regex("""^\*\*(.+?)\*\*:?\s*(.*)$""")
+                    val match = regex.find(bulletText)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 2.dp, top = 2.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .size(4.dp)
+                                .clip(CircleShape)
+                                .background(CrunchyrollOrange.copy(alpha = 0.8f))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        if (match != null) {
+                            val title = match.groupValues[1]
+                            val desc = match.groupValues[2]
+                            Text(
+                                text = androidx.compose.ui.text.buildAnnotatedString {
+                                    androidx.compose.ui.text.withStyle(
+                                        androidx.compose.ui.text.SpanStyle(
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    ) {
+                                        append(title)
+                                        if (desc.isNotEmpty()) append(": ")
+                                    }
+                                    androidx.compose.ui.text.withStyle(
+                                        androidx.compose.ui.text.SpanStyle(
+                                            color = TextSecondary
+                                        )
+                                    ) {
+                                        append(desc)
+                                    }
+                                },
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
+                            )
+                        } else {
+                            val cleanText = bulletText.replace("**", "")
+                            Text(
+                                text = cleanText,
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    val cleanText = line.replace("**", "")
+                    Text(
+                        text = cleanText,
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
                 }
             }
         }

@@ -1,4 +1,4 @@
-package id.tatap.app.ui.components
+package id.miru.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,9 +26,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import id.tatap.app.ui.theme.CrunchyOrange
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
+import id.miru.app.ui.theme.CrunchyOrange
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
 
 @Composable
 fun OrangeButton(

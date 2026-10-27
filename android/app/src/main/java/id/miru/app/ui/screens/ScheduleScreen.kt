@@ -1,4 +1,4 @@
-package id.tatap.app.ui.screens
+package id.miru.app.ui.screens
 
 import kotlinx.coroutines.launch
 
@@ -50,17 +50,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import id.tatap.app.data.ApiClient
-import id.tatap.app.data.AnimeCard
-import id.tatap.app.data.ScheduleItem
-import id.tatap.app.data.WeeklySchedule
-import id.tatap.app.ui.components.OrangeButton
-import id.tatap.app.ui.theme.CrunchyrollOrange
-import id.tatap.app.ui.theme.DarkOled
-import id.tatap.app.ui.theme.DarkSurface
-import id.tatap.app.ui.theme.DarkSurfaceVariant
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
+import id.miru.app.data.ApiClient
+import id.miru.app.data.AnimeCard
+import id.miru.app.data.ScheduleItem
+import id.miru.app.data.WeeklySchedule
+import id.miru.app.ui.components.OrangeButton
+import id.miru.app.ui.theme.CrunchyrollOrange
+import id.miru.app.ui.theme.DarkOled
+import id.miru.app.ui.theme.DarkSurface
+import id.miru.app.ui.theme.DarkSurfaceVariant
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
 
 @Composable
 fun ScheduleScreen(

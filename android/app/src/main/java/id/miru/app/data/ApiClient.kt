@@ -1,4 +1,4 @@
-package id.tatap.app.data
+package id.miru.app.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -266,6 +266,41 @@ object ApiClient {
                 .build()
 
             client.newCall(request).execute().close()
+        }
+    }
+    suspend fun translateText(text: String, sl: String = "auto", tl: String = "id"): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedText = java.net.URLEncoder.encode(text, "UTF-8")
+            val request = Request.Builder()
+                .url("$BASE_URL/api/translate?text=$encodedText&sl=$sl&tl=$tl")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
+                val json = JSONObject(resp.body?.string().orEmpty())
+                json.optString("data", text)
+            }
+        }
+    }
+
+    suspend fun getSkipTimes(malId: Long, episode: Int, length: Double = 1440.0): Result<Pair<SkipInterval, SkipInterval>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/player/skip_times?mal_id=$malId&ep=$episode&length=$length")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) return@runCatching Pair(SkipInterval(), SkipInterval())
+                val json = JSONObject(resp.body?.string().orEmpty())
+                val data = json.optJSONObject("data") ?: return@runCatching Pair(SkipInterval(), SkipInterval())
+                val opObj = data.optJSONObject("op")
+                val edObj = data.optJSONObject("ed")
+                val intro = SkipInterval(opObj?.optDouble("start") ?: 0.0, opObj?.optDouble("end") ?: 0.0)
+                val outro = SkipInterval(edObj?.optDouble("start") ?: 0.0, edObj?.optDouble("end") ?: 0.0)
+                Pair(intro, outro)
+            }
         }
     }
     suspend fun getWeeklySchedule(): Result<WeeklySchedule> = withContext(Dispatchers.IO) {

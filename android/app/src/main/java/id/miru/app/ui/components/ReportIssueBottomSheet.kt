@@ -1,4 +1,4 @@
-package id.tatap.app.ui.components
+package id.miru.app.ui.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -54,13 +54,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import id.tatap.app.BuildConfig
-import id.tatap.app.ui.theme.CrunchyrollOrange
-import id.tatap.app.ui.theme.DarkOled
-import id.tatap.app.ui.theme.DarkSurface
-import id.tatap.app.ui.theme.DarkSurfaceVariant
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
+import id.miru.app.BuildConfig
+import id.miru.app.ui.theme.CrunchyrollOrange
+import id.miru.app.ui.theme.DarkOled
+import id.miru.app.ui.theme.DarkSurface
+import id.miru.app.ui.theme.DarkSurfaceVariant
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
 import java.net.URLEncoder
 
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
@@ -93,7 +93,7 @@ fun ReportIssueBottomSheet(
         val appVersion = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
 
         return buildString {
-            appendLine("### Laporan Masalah Tatap Anime")
+            appendLine("### Laporan Masalah Miru Anime")
             appendLine("- **Kategori:** $selectedCategory")
             if (!animeTitle.isNullOrBlank()) {
                 appendLine("- **Anime:** $animeTitle")
@@ -145,7 +145,7 @@ fun ReportIssueBottomSheet(
     fun copyToClipboard() {
         val report = buildDiagnosticReport()
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Laporan Bug Tatap", report)
+        val clip = ClipData.newPlainText("Laporan Bug Miru", report)
         clipboard.setPrimaryClip(clip)
         isCopied = true
         Toast.makeText(context, "Laporan berhasil disalin ke papan klip!", Toast.LENGTH_SHORT).show()
@@ -219,7 +219,7 @@ fun ReportIssueBottomSheet(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Tatap v${BuildConfig.VERSION_NAME} • ${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})",
+                    text = "Miru v${BuildConfig.VERSION_NAME} • ${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})",
                     fontSize = 12.sp,
                     color = TextPrimary
                 )

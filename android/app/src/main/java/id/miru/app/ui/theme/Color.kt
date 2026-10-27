@@ -1,4 +1,4 @@
-package id.tatap.app.ui.theme
+package id.miru.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

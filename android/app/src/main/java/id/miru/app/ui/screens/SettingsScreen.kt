@@ -1,4 +1,4 @@
-package id.tatap.app.ui.screens
+package id.miru.app.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -59,20 +59,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import id.tatap.app.data.ApiClient
-import id.tatap.app.data.AppRelease
-import id.tatap.app.data.UpdateManager
-import id.tatap.app.ui.components.ChangelogModalBottomSheet
-import id.tatap.app.ui.components.UpdateAvailableBottomSheet
-import id.tatap.app.ui.theme.BorderSubtle
-import id.tatap.app.ui.theme.CrunchyrollOrange
-import id.tatap.app.ui.components.ReportIssueBottomSheet
-import id.tatap.app.ui.theme.DarkOled
-import id.tatap.app.ui.theme.SurfaceDark
-import id.tatap.app.ui.theme.SurfaceVariantDark
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
-import id.tatap.app.ui.theme.TextSecondary
+import id.miru.app.data.ApiClient
+import id.miru.app.data.AppRelease
+import id.miru.app.data.UpdateManager
+import id.miru.app.ui.components.ChangelogModalBottomSheet
+import id.miru.app.ui.components.UpdateAvailableBottomSheet
+import id.miru.app.ui.theme.BorderSubtle
+import id.miru.app.ui.theme.CrunchyrollOrange
+import id.miru.app.ui.components.ReportIssueBottomSheet
+import id.miru.app.ui.theme.DarkOled
+import id.miru.app.ui.theme.SurfaceDark
+import id.miru.app.ui.theme.SurfaceVariantDark
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
+import id.miru.app.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
 @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -107,7 +107,7 @@ fun SettingsScreen(
                     } else {
                         Toast.makeText(
                             context,
-                            "Tatap sudah dalam versi terbaru (v${UpdateManager.currentVersion})",
+                            "Miru sudah dalam versi terbaru (v${UpdateManager.currentVersion})",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -602,7 +602,7 @@ fun SettingsScreen(
         }
 
 
-        // 5. Tentang Tatap
+        // 5. Tentang Miru
         item {
             Card(
                 modifier = Modifier
@@ -638,7 +638,7 @@ fun SettingsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "T",
+                                text = "M",
                                 color = Color.Black,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Black
@@ -649,7 +649,7 @@ fun SettingsScreen(
 
                         Column {
                             Text(
-                                text = "Tatap Anime Streaming",
+                                text = "Miru Anime Streaming",
                                 color = TextPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold

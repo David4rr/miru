@@ -1,4 +1,4 @@
-package id.tatap.app.ui.screens
+package id.miru.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,19 +40,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import id.tatap.app.data.AnimeCard
-import id.tatap.app.data.ApiClient
-import id.tatap.app.data.HomeCatalog
-import id.tatap.app.data.WatchHistoryItem
-import id.tatap.app.ui.components.AnimePosterCard
-import id.tatap.app.ui.components.ContinueWatchingCard
-import id.tatap.app.ui.components.HeroBannerCarousel
-import id.tatap.app.ui.components.OrangeButton
-import id.tatap.app.ui.components.SectionHeader
-import id.tatap.app.ui.theme.CrunchyOrange
-import id.tatap.app.ui.theme.DarkBackground
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
+import id.miru.app.data.AnimeCard
+import id.miru.app.data.ApiClient
+import id.miru.app.data.HomeCatalog
+import id.miru.app.data.WatchHistoryItem
+import id.miru.app.ui.components.AnimePosterCard
+import id.miru.app.ui.components.ContinueWatchingCard
+import id.miru.app.ui.components.HeroBannerCarousel
+import id.miru.app.ui.components.OrangeButton
+import id.miru.app.ui.components.SectionHeader
+import id.miru.app.ui.theme.CrunchyOrange
+import id.miru.app.ui.theme.DarkBackground
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
@@ -156,7 +156,7 @@ fun HomeScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "TATAP",
+                                    text = "MIRU",
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color.White,

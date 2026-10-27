@@ -1,18 +1,17 @@
 # -------------------------------------------------------------
-# Tatap Android ProGuard & R8 Configuration
+# Miru Android ProGuard & R8 Configuration
 # -------------------------------------------------------------
 
 # JNI Native Methods & Rust Daemon Bridge
 -keepclasseswithmembernames class * {
     native <methods>;
 }
--keep class id.tatap.app.NativeBridge { *; }
--keepclassmembers class id.tatap.app.NativeBridge { *; }
+-keep class id.miru.app.NativeBridge { *; }
+-keepclassmembers class id.miru.app.NativeBridge { *; }
 
 # Data Models & Serialization
--keep class id.tatap.app.data.** { *; }
--keepclassmembers class id.tatap.app.data.** { *; }
-
+-keep class id.miru.app.data.** { *; }
+-keepclassmembers class id.miru.app.data.** { *; }
 # AndroidX Media3 / ExoPlayer
 -keep class androidx.media3.** { *; }
 -keepclassmembers class androidx.media3.** { *; }

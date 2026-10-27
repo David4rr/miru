@@ -143,7 +143,7 @@ pub async fn get_or_translate_vtt(
     for chunk in cue_indices.chunks(30) {
         let combined_text: Vec<String> = chunk.iter().map(|&i| lines[i].trim().to_string()).collect();
         let joined = combined_text.join(" ~~~ ");
-        if let Ok(translated_joined) = translate_gtx_text(&joined, "en", "id").await {
+        if let Ok(translated_joined) = translate_text(&joined, "en", "id").await {
             let parts: Vec<&str> = translated_joined.split("~~~").collect();
             for (i, &line_idx) in chunk.iter().enumerate() {
                 let translated_part = parts.get(i).map(|s| s.trim().to_string()).unwrap_or_else(|| lines[line_idx].to_string());
@@ -167,7 +167,7 @@ pub async fn get_or_translate_vtt(
 }
 
 /// Translate text chunk using Google GTX+ pool
-async fn translate_gtx_text(text: &str, sl: &str, tl: &str) -> Result<String> {
+pub async fn translate_text(text: &str, sl: &str, tl: &str) -> Result<String> {
     let api_url = format!(
         "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl={}&tl={}&q={}",
         sl, tl, urlencoding::encode(text)

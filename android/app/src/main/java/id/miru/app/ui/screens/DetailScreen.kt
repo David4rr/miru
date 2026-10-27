@@ -1,4 +1,4 @@
-package id.tatap.app.ui.screens
+package id.miru.app.ui.screens
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,7 +27,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -52,18 +57,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import id.tatap.app.data.AnimeCard
-import id.tatap.app.data.ApiClient
-import id.tatap.app.data.BookmarkItem
-import id.tatap.app.data.WatchHistoryItem
-import id.tatap.app.ui.components.OrangeButton
-import id.tatap.app.ui.components.SectionHeader
-import id.tatap.app.ui.theme.CrunchyOrange
-import id.tatap.app.ui.theme.DarkBackground
-import id.tatap.app.ui.theme.DarkSurface
-import id.tatap.app.ui.theme.DarkSurfaceVariant
-import id.tatap.app.ui.theme.TextMuted
-import id.tatap.app.ui.theme.TextPrimary
+import id.miru.app.data.AnimeCard
+import id.miru.app.data.ApiClient
+import id.miru.app.data.BookmarkItem
+import id.miru.app.data.WatchHistoryItem
+import id.miru.app.ui.components.OrangeButton
+import id.miru.app.ui.components.SectionHeader
+import id.miru.app.ui.theme.CrunchyOrange
+import id.miru.app.ui.theme.DarkBackground
+import id.miru.app.ui.theme.DarkSurface
+import id.miru.app.ui.theme.DarkSurfaceVariant
+import id.miru.app.ui.theme.TextMuted
+import id.miru.app.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -77,6 +82,9 @@ fun DetailScreen(
     var isBookmarked by remember { mutableStateOf(false) }
     var watchedHistory by remember { mutableStateOf<WatchHistoryItem?>(null) }
     var isSynopsisExpanded by remember { mutableStateOf(false) }
+    var translatedSynopsis by remember { mutableStateOf<String?>(null) }
+    var isTranslating by remember { mutableStateOf(false) }
+    var showOriginalSynopsis by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(anime.slug) {
@@ -110,7 +118,12 @@ fun DetailScreen(
         }
     }
 
-    val totalEpisodes = anime.episodesReleased ?: anime.episodes ?: 12
+    val isNotYetReleased = anime.isNotYetReleased
+    val totalEpisodes = if (isNotYetReleased) {
+        0
+    } else {
+        anime.episodesReleased ?: anime.episodes ?: 0
+    }
 
     Box(
         modifier = modifier
@@ -261,7 +274,7 @@ fun DetailScreen(
                         if (anime.status != null) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = anime.status,
+                                text = anime.displayStatus,
                                 fontSize = 12.sp,
                                 color = CrunchyOrange,
                                 fontWeight = FontWeight.SemiBold
@@ -278,13 +291,71 @@ fun DetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    val resumeEp = watchedHistory?.episode ?: 1
-                    val ctaText = if (watchedHistory != null) "Lanjutkan Menonton (Episode $resumeEp)" else "Mulai Menonton (Episode 1)"
-                    OrangeButton(
-                        text = ctaText,
-                        onClick = { onPlayEpisodeClick(anime, resumeEp) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (isNotYetReleased) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = CrunchyOrange,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Akan Datang (Belum Tayang)",
+                                        color = TextPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Anime ini belum resmi rilis. Simpan ke Koleksi untuk menandainya.",
+                                        color = TextMuted,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    } else if (totalEpisodes > 0) {
+                        val resumeEp = watchedHistory?.episode ?: 1
+                        val ctaText = if (watchedHistory != null) "Lanjutkan Menonton (Episode $resumeEp)" else "Mulai Menonton (Episode 1)"
+                        OrangeButton(
+                            text = ctaText,
+                            onClick = { onPlayEpisodeClick(anime, resumeEp) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Episode streaming belum tersedia untuk anime ini.",
+                                    color = TextMuted,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Genre Pills
@@ -293,7 +364,7 @@ fun DetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            anime.genres.forEach { genre ->
+                            anime.displayGenres.forEach { genre ->
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
@@ -313,20 +384,83 @@ fun DetailScreen(
                     }
 
                     // Synopsis Box
-                    if (!anime.synopsis.isNullOrEmpty()) {
+                    // Synopsis Box with Translation Support
+                    val rawSynopsis = anime.cleanSynopsis ?: anime.synopsis
+                    if (!rawSynopsis.isNullOrEmpty()) {
                         Column(modifier = Modifier.animateContentSize()) {
-                            Text(
-                                text = "Sinopsis",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Sinopsis",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(DarkSurfaceVariant)
+                                        .clickable {
+                                            if (translatedSynopsis != null) {
+                                                showOriginalSynopsis = !showOriginalSynopsis
+                                            } else if (!isTranslating) {
+                                                isTranslating = true
+                                                scope.launch {
+                                                    ApiClient.translateText(rawSynopsis).onSuccess { tr ->
+                                                        translatedSynopsis = tr
+                                                        showOriginalSynopsis = false
+                                                    }
+                                                    isTranslating = false
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    if (isTranslating) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(12.dp),
+                                            strokeWidth = 2.dp,
+                                            color = CrunchyOrange
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Translate,
+                                            contentDescription = null,
+                                            tint = CrunchyOrange,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text(
+                                        text = when {
+                                            isTranslating -> "Menerjemahkan..."
+                                            translatedSynopsis != null && !showOriginalSynopsis -> "Teks Asli"
+                                            translatedSynopsis != null -> "Terjemahan"
+                                            else -> "Terjemahkan"
+                                        },
+                                        fontSize = 11.sp,
+                                        color = CrunchyOrange,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
                             Spacer(modifier = Modifier.height(6.dp))
+                            val currentSynopsisText = if (translatedSynopsis != null && !showOriginalSynopsis) {
+                                translatedSynopsis!!
+                            } else {
+                                rawSynopsis
+                            }
                             Text(
-                                text = anime.synopsis,
+                                text = currentSynopsisText,
                                 fontSize = 13.sp,
                                 color = TextMuted,
-                                lineHeight = 18.sp,
+                                lineHeight = 19.sp,
                                 maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -345,10 +479,10 @@ fun DetailScreen(
             }
 
             // 4. Episode List
-            item {
-                SectionHeader(title = "Daftar Episode ($totalEpisodes)")
-            }
-
+            if (totalEpisodes > 0) {
+                item {
+                    SectionHeader(title = "Daftar Episode ($totalEpisodes)")
+                }
             items(totalEpisodes) { index ->
                 val epNum = index + 1
                 Card(
@@ -434,6 +568,49 @@ fun DetailScreen(
                             tint = CrunchyOrange,
                             modifier = Modifier.size(20.dp)
                         )
+                    }
+                }
+            }
+            } else {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkSurface)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = if (isNotYetReleased) Icons.Default.CalendarMonth else Icons.Default.HourglassEmpty,
+                                contentDescription = null,
+                                tint = CrunchyOrange,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (isNotYetReleased) "Episode Belum Dirilis" else "Belum Ada Episode",
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isNotYetReleased) {
+                                    "Anime ini masih dalam tahap produksi/jadwal mendatang. Tunggu tanggal rilis resminya!"
+                                } else {
+                                    "Episode belum dipublikasikan oleh server penyedia streaming."
+                                },
+                                color = TextMuted,
+                                fontSize = 12.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                 }
             }

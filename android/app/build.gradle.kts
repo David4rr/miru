@@ -5,15 +5,15 @@ plugins {
 }
 
 android {
-    namespace = "id.tatap.app"
+    namespace = "id.miru.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "id.tatap.app"
+        applicationId = "id.miru.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.1.6"
+        versionCode = 7
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

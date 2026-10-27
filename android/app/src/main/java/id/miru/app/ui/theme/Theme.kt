@@ -1,4 +1,4 @@
-package id.tatap.app.ui.theme
+package id.miru.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -21,7 +21,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun TatapTheme(content: @Composable () -> Unit) {
+fun MiruTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DarkColorScheme,
         content = content

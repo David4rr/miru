@@ -1,12 +1,12 @@
 [package]
-name = "tatap-core"
-version = "0.1.0"
+name = "miru-core"
+version = "0.2.0"
 edition = "2021"
-description = "Embedded Rust streaming & proxy daemon for Tatap Android"
-authors = ["Tatap Contributors"]
+description = "Embedded Rust streaming & proxy daemon for Miru Android"
+authors = ["Miru Contributors"]
 
 [lib]
-name = "tatap_core"
+name = "miru_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

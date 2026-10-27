@@ -42,6 +42,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/player/video", get(proxy::proxy_video_handler))
         .route("/api/player/sub", get(sub_handler))
         .route("/api/player/skip_times", get(skip_times_handler))
+        .route("/api/translate", get(translate_handler))
         .route("/api/history", get(get_history_handler).post(add_history_handler).delete(clear_history_handler))
         .route("/api/history/:slug", delete(delete_history_item_handler))
         .route("/api/bookmarks", get(get_bookmarks_handler).post(add_bookmark_handler))
@@ -169,6 +170,25 @@ async fn skip_times_handler(Query(params): Query<SkipTimesParams>) -> Response {
         ).into_response(),
     }
 }
+#[derive(Debug, Deserialize)]
+struct TranslateParams {
+    text: String,
+    sl: Option<String>,
+    tl: Option<String>,
+}
+
+async fn translate_handler(Query(params): Query<TranslateParams>) -> Response {
+    let sl = params.sl.unwrap_or_else(|| "auto".to_string());
+    let tl = params.tl.unwrap_or_else(|| "id".to_string());
+    match api::sub::translate_text(&params.text, &sl, &tl).await {
+        Ok(translated) => Json(json!({ "success": true, "data": translated })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
 
 // -------------------------------------------------------------
 // History & Progress Handlers
@@ -373,6 +393,16 @@ pub extern "system" fn Java_id_tatap_app_NativeBridge_startDaemon(
         Err(_) => JNI_FALSE,
     }
 }
+#[no_mangle]
+pub extern "system" fn Java_id_miru_app_NativeBridge_startDaemon(
+    env: JNIEnv,
+    class: JClass,
+    data_dir: JString,
+    port: jint,
+) -> jboolean {
+    Java_id_tatap_app_NativeBridge_startDaemon(env, class, data_dir, port)
+}
+
 
 #[no_mangle]
 pub extern "system" fn Java_id_tatap_app_NativeBridge_stopDaemon(
@@ -386,6 +416,14 @@ pub extern "system" fn Java_id_tatap_app_NativeBridge_stopDaemon(
         JNI_FALSE
     }
 }
+#[no_mangle]
+pub extern "system" fn Java_id_miru_app_NativeBridge_stopDaemon(
+    env: JNIEnv,
+    class: JClass,
+) -> jboolean {
+    Java_id_tatap_app_NativeBridge_stopDaemon(env, class)
+}
+
 
 #[no_mangle]
 pub extern "system" fn Java_id_tatap_app_NativeBridge_isDaemonRunning(
@@ -397,4 +435,11 @@ pub extern "system" fn Java_id_tatap_app_NativeBridge_isDaemonRunning(
     } else {
         JNI_FALSE
     }
+}
+#[no_mangle]
+pub extern "system" fn Java_id_miru_app_NativeBridge_isDaemonRunning(
+    env: JNIEnv,
+    class: JClass,
+) -> jboolean {
+    Java_id_tatap_app_NativeBridge_isDaemonRunning(env, class)
 }
