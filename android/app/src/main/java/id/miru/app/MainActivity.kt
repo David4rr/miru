@@ -71,10 +71,7 @@ class MainActivity : ComponentActivity() {
         mode?.let { m ->
             window.attributes = window.attributes.apply {
                 preferredDisplayModeId = m.modeId
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    preferredMinDisplayRefreshRate = m.refreshRate
-                    preferredMaxDisplayRefreshRate = m.refreshRate
-                }
+                preferredRefreshRate = m.refreshRate
             }
         }
     }
