@@ -344,8 +344,8 @@ impl Database {
             params![slug, episode, progress, duration],
         )?;
         let _ = conn.execute(
-            "UPDATE watch_history SET progress = ?1 WHERE slug = ?2 AND episode = ?3",
-            params![progress, slug, episode],
+            "UPDATE watch_history SET progress = ?1, episode = ?2 WHERE slug = ?3",
+            params![progress, episode, slug],
         );
         Ok(())
     }

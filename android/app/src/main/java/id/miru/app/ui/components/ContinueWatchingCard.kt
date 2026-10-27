@@ -43,11 +43,15 @@ fun ContinueWatchingCard(
     onClick: (WatchHistoryItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isFinished = item.progress >= 85
+    val targetEp = if (isFinished) item.episode + 1 else item.episode
+    val effectiveItem = if (isFinished) item.copy(episode = targetEp, progress = 0) else item
+
     Column(
         modifier = modifier
             .width(220.dp)
             .clip(RoundedCornerShape(8.dp))
-            .clickable { onClick(item) }
+            .clickable { onClick(effectiveItem) }
             .padding(4.dp)
     ) {
         // Thumbnail Box (16:9)
@@ -103,7 +107,7 @@ fun ContinueWatchingCard(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "Ep. ${item.episode}",
+                    text = "Ep. $targetEp",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = CrunchyOrange
@@ -137,7 +141,7 @@ fun ContinueWatchingCard(
 
         // Subtitle
         Text(
-            text = "Lanjutkan Episode ${item.episode}",
+            text = if (isFinished) "Lanjutkan Episode $targetEp" else "Lanjutkan Episode ${item.episode} (${item.progress}%)",
             fontSize = 11.sp,
             color = TextMuted,
             maxLines = 1

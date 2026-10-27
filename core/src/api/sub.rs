@@ -168,6 +168,10 @@ pub async fn get_or_translate_vtt(
 
 /// Translate text chunk using Google GTX+ pool
 pub async fn translate_text(text: &str, sl: &str, tl: &str) -> Result<String> {
+    if text.trim().is_empty() {
+        return Ok(String::new());
+    }
+
     let api_url = format!(
         "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl={}&tl={}&q={}",
         sl, tl, urlencoding::encode(text)
@@ -177,8 +181,18 @@ pub async fn translate_text(text: &str, sl: &str, tl: &str) -> Result<String> {
     if res.status().is_success() {
         let val: Value = res.json().await?;
         if let Some(arr) = val.as_array() {
-            if let Some(first) = arr.first().and_then(|s| s.as_str()) {
-                return Ok(first.to_string());
+            let mut pieces = Vec::new();
+            for item in arr {
+                if let Some(inner_arr) = item.as_array() {
+                    if let Some(t) = inner_arr.first().and_then(|v| v.as_str()) {
+                        pieces.push(t.to_string());
+                    }
+                } else if let Some(t) = item.as_str() {
+                    pieces.push(t.to_string());
+                }
+            }
+            if !pieces.is_empty() {
+                return Ok(pieces.join(" "));
             }
         }
     }

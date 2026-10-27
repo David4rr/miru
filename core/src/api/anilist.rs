@@ -272,7 +272,9 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
 pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
     let cached = db.get_search_cache("home_catalog_v2", 3600)?;
     if let Some(val) = cached {
-        if let Ok(res) = serde_json::from_value::<HomeCatalogResponse>(val) {
+        if let Ok(mut res) = serde_json::from_value::<HomeCatalogResponse>(val) {
+            let history = db.get_history(10).unwrap_or_default();
+            res.continue_watching = history.into_iter().map(|h| serde_json::to_value(h).unwrap_or(Value::Null)).collect();
             return Ok(res);
         }
     }

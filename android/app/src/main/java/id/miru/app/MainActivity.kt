@@ -34,7 +34,7 @@ import id.miru.app.data.AppRelease
 import id.miru.app.data.UpdateManager
 import id.miru.app.ui.components.UpdateAvailableBottomSheet
 import id.miru.app.ui.components.UpdateBanner
-import id.miru.app.ui.components.ModernFloatingNavBar
+import id.miru.app.ui.components.OledBottomNavBar
 import id.miru.app.ui.screens.DetailScreen
 import id.miru.app.ui.screens.HomeScreen
 import id.miru.app.ui.screens.LibraryScreen
@@ -120,7 +120,7 @@ fun MainApp() {
             Scaffold(
                 containerColor = DarkOled,
                 bottomBar = {
-                    ModernFloatingNavBar(
+                    OledBottomNavBar(
                         selectedTab = selectedTab,
                         onTabSelected = { selectedTab = it }
                     )
@@ -163,7 +163,6 @@ fun MainApp() {
                                     item.episode
                                 )
                             },
-                            onSearchClick = { selectedTab = 1 },
                             onScheduleClick = { showScheduleScreen = true }
                         )
                         1 -> SearchScreen(

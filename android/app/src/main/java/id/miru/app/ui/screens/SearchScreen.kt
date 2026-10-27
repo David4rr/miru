@@ -1,21 +1,21 @@
 package id.miru.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.ApiClient
 import id.miru.app.ui.components.AnimePosterCard
+import id.miru.app.ui.components.search.POPULAR_GENRES
+import id.miru.app.ui.components.search.SearchTrendingSection
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkBackground
 import id.miru.app.ui.theme.DarkSurface
@@ -55,12 +57,6 @@ import id.miru.app.ui.theme.TextMuted
 import id.miru.app.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 
-private val POPULAR_GENRES = listOf(
-    "Action", "Adventure", "Comedy", "Drama", "Fantasy",
-    "Isekai", "Romance", "Sci-Fi", "Slice of Life", "Supernatural"
-)
-
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
     onAnimeClick: (AnimeCard) -> Unit,
@@ -70,7 +66,6 @@ fun SearchScreen(
     var searchResults by remember { mutableStateOf<List<AnimeCard>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
 
-    // Debounced search trigger (400ms)
     LaunchedEffect(searchQuery) {
         val trimmed = searchQuery.trim()
         if (trimmed.isEmpty()) {
@@ -78,17 +73,14 @@ fun SearchScreen(
             isSearching = false
             return@LaunchedEffect
         }
-
         isSearching = true
-        delay(400)
+        delay(350)
         ApiClient.searchAnime(trimmed)
             .onSuccess {
                 searchResults = it
                 isSearching = false
             }
-            .onFailure {
-                isSearching = false
-            }
+            .onFailure { isSearching = false }
     }
 
     Column(
@@ -97,17 +89,10 @@ fun SearchScreen(
             .background(DarkBackground)
             .padding(top = 16.dp)
     ) {
-        // Search Input Bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = {
-                Text(
-                    text = "Cari judul anime, genre...",
-                    color = TextMuted,
-                    fontSize = 14.sp
-                )
-            },
+            placeholder = { Text("Cari judul anime, karakter, genre...", color = TextMuted, fontSize = 13.sp) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -118,11 +103,7 @@ fun SearchScreen(
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Hapus",
-                            tint = TextMuted
-                        )
+                        Icon(Icons.Default.Clear, contentDescription = "Hapus", tint = TextMuted)
                     }
                 }
             },
@@ -132,7 +113,7 @@ fun SearchScreen(
                 focusedContainerColor = DarkSurface,
                 unfocusedContainerColor = DarkSurface,
                 focusedBorderColor = CrunchyOrange,
-                unfocusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color(0xFF23252E),
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White
             ),
@@ -143,7 +124,6 @@ fun SearchScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Persistent Quick Genre Filter Chips
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -154,9 +134,7 @@ fun SearchScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (isSelected) CrunchyOrange else DarkSurfaceVariant)
-                        .clickable {
-                            searchQuery = if (isSelected) "" else genre
-                        }
+                        .clickable { searchQuery = if (isSelected) "" else genre }
                         .padding(horizontal = 14.dp, vertical = 7.dp)
                 ) {
                     Text(
@@ -170,54 +148,14 @@ fun SearchScreen(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        // Content Area
         when {
             isSearching -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = CrunchyOrange)
                 }
             }
+            searchQuery.trim().isEmpty() -> SearchTrendingSection(onTagClick = { searchQuery = it })
 
-            searchQuery.trim().isEmpty() -> {
-                // Genre suggestions when empty
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Text(
-                        text = "Jelajahi Berdasarkan Genre",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        POPULAR_GENRES.forEach { genre ->
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(DarkSurfaceVariant)
-                                    .clickable { searchQuery = genre }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                            ) {
-                                Text(
-                                    text = genre,
-                                    fontSize = 13.sp,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
             searchResults.isEmpty() -> {
                 Box(
                     modifier = Modifier
@@ -225,26 +163,13 @@ fun SearchScreen(
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(52.dp)
-                        )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Anime Tidak Ditemukan",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text("Anime Tidak Ditemukan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Tidak ada anime yang cocok dengan \"$searchQuery\". Coba periksa ejaan judul atau pilih genre di atas.",
+                            "Tidak ada hasil untuk \"$searchQuery\". Coba periksa ejaan atau gunakan tag populer.",
                             fontSize = 13.sp,
                             color = TextMuted,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -254,20 +179,17 @@ fun SearchScreen(
             }
 
             else -> {
-                // Results Grid (3 columns)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(searchResults) { anime ->
-                        AnimePosterCard(
-                            anime = anime,
-                            onClick = onAnimeClick,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 80.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(searchResults) { anime ->
+                            AnimePosterCard(anime = anime, onClick = onAnimeClick, modifier = Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
