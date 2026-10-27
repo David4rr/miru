@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -68,8 +70,13 @@ fun SettingsScreen(
             result.fold(
                 onSuccess = { release ->
                     updateCheckResult = release
-                    if (release.isNewer) showUpdateSheet = true
-                    else Toast.makeText(context, "Aplikasi sudah dalam versi terbaru (v${release.versionName})", Toast.LENGTH_SHORT).show()
+                    if (release != null && release.isNewer) {
+                        showUpdateSheet = true
+                    } else if (release != null) {
+                        Toast.makeText(context, "Aplikasi sudah dalam versi terbaru (v${release.versionName})", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Tidak ada rilis baru ditemukan", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onFailure = { err ->
                     Toast.makeText(context, "Gagal memeriksa pembaruan: ${err.message}", Toast.LENGTH_SHORT).show()
@@ -108,7 +115,7 @@ fun SettingsScreen(
 
         item { SettingsAboutCard() }
 
-        item { androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(80.dp)) }
+        item { Spacer(modifier = Modifier.height(80.dp)) }
     }
 
     if (showClearHistoryDialog) {

@@ -62,16 +62,18 @@ fun ScheduleScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedDayIndex by remember { mutableIntStateOf(0) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     fun loadSchedule() {
         isLoading = true
         errorMessage = null
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        scope.launch {
             ApiClient.getWeeklySchedule()
                 .onSuccess {
                     schedule = it
                     isLoading = false
-                    selectedDayIndex = it.todayIndex.coerceIn(0, (it.days.size - 1).coerceAtLeast(0))
+                    val todayIdx = it.days.indexOfFirst { d -> d.isToday }.coerceAtLeast(0)
+                    selectedDayIndex = todayIdx
                 }
                 .onFailure {
                     errorMessage = it.localizedMessage ?: "Gagal memuat jadwal tayang mingguan"
@@ -128,7 +130,7 @@ fun ScheduleScreen(
                 ) {
                     itemsIndexed(currentDays) { index, day ->
                         val isSelected = index == selectedDayIndex
-                        val isToday = index == schedule!!.todayIndex
+                        val isToday = day.isToday
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
