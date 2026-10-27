@@ -268,6 +268,25 @@ object ApiClient {
             client.newCall(request).execute().close()
         }
     }
+    suspend fun getProgress(slug: String, episode: Int): Result<WatchProgressItem?> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/progress?slug=$slug&ep=$episode")
+                .get()
+                .build()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) return@runCatching null
+                val json = JSONObject(resp.body?.string().orEmpty())
+                val data = json.optJSONObject("data") ?: return@runCatching null
+                WatchProgressItem(
+                    slug = data.optString("slug"),
+                    episode = data.optInt("episode"),
+                    progress = data.optInt("progress"),
+                    duration = data.optInt("duration")
+                )
+            }
+        }
+    }
     suspend fun translateText(text: String, sl: String = "auto", tl: String = "id"): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val encodedText = java.net.URLEncoder.encode(text, "UTF-8")

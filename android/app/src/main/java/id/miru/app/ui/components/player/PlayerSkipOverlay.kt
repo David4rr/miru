@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,10 +27,11 @@ fun PlayerSkipOverlay(
     autoSkipNotice: String?,
     showSkipIntroBtn: Boolean,
     showSkipOutroBtn: Boolean,
+    areControlsVisible: Boolean,
     onSkipClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier) {
+    Box(modifier = modifier.fillMaxSize()) {
         // Auto-skip top notification pill
         AnimatedVisibility(
             visible = autoSkipNotice != null,
@@ -55,20 +57,21 @@ fun PlayerSkipOverlay(
             }
         }
 
-        // Manual floating skip button (Bottom Right)
+        // Manual floating skip / Next Episode button (Bottom Right)
         if (showSkipIntroBtn || showSkipOutroBtn) {
+            val bottomPadding = if (areControlsVisible) 88.dp else 32.dp
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 24.dp, bottom = 86.dp)
+                    .padding(end = 24.dp, bottom = bottomPadding)
                     .clip(RoundedCornerShape(20.dp))
                     .background(CrunchyOrange)
                     .clickable { onSkipClick() }
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(
-                    text = if (showSkipIntroBtn) "Lewati Pembuka >>" else "Lewati Penutup >>",
+                    text = if (showSkipIntroBtn) "Lewati Pembuka >>" else "Episode Berikutnya >>",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold

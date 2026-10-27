@@ -10,6 +10,9 @@ import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -35,12 +38,25 @@ fun saveWatchProgressAsync(slug: String, episode: Int, currentPosition: Long, du
         }
     }
 }
+suspend fun fetchResumePositionMs(slug: String, episode: Int): Long? {
+    val saved = ApiClient.getProgress(slug, episode).getOrNull() ?: return null
+    return if (saved.progress in 5..85 && saved.duration > 0) {
+        (saved.duration * saved.progress / 100L) * 1000L
+    } else null
+}
+
+fun cycleNextSpeed(current: Float): Float {
+    val speeds = listOf(1.0f, 1.25f, 1.5f, 2.0f)
+    return speeds[(speeds.indexOf(current) + 1) % speeds.size]
+}
+
 
 suspend fun prepareMediaStream(
     slug: String,
     episode: Int,
     malId: Long?,
     exoPlayer: ExoPlayer,
+    resumePositionMs: Long? = null,
     onSuccess: (ResolvedStream) -> Unit,
     onFailure: (String) -> Unit
 ) {
@@ -63,6 +79,9 @@ suspend fun prepareMediaStream(
             }
             exoPlayer.setMediaItem(mediaItemBuilder.build())
             exoPlayer.prepare()
+            if (resumePositionMs != null && resumePositionMs > 5_000L) {
+                exoPlayer.seekTo(resumePositionMs)
+            }
             exoPlayer.play()
         }
         .onFailure { err ->
@@ -92,6 +111,11 @@ fun rememberExoPlayerWithLifecycle(
     DisposableEffect(Unit) {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
+        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { onIsPlayingChanged(playing) }
             override fun onPlaybackStateChanged(state: Int) {
@@ -107,6 +131,7 @@ fun rememberExoPlayerWithLifecycle(
             exoPlayer.release()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 

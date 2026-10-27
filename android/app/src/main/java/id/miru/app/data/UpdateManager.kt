@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.1"
+        "0.2.2"
     }
 
     private val httpClient = OkHttpClient.Builder()

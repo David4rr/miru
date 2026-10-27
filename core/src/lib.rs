@@ -45,6 +45,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/translate", get(translate_handler))
         .route("/api/history", get(get_history_handler).post(add_history_handler).delete(clear_history_handler))
         .route("/api/history/:slug", delete(delete_history_item_handler))
+        .route("/api/progress", get(get_progress_handler).post(save_progress_handler))
         .route("/api/bookmarks", get(get_bookmarks_handler).post(add_bookmark_handler))
         .route("/api/bookmarks/:slug", delete(remove_bookmark_handler))
         .layer(CorsLayer::permissive())

@@ -4,11 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 @Composable
@@ -24,6 +28,8 @@ fun PlayerControlsOverlay(
     isBuffering: Boolean,
     isLoadingStream: Boolean,
     hasNextEpisode: Boolean,
+    errorMessage: String? = null,
+    onRetryClick: (() -> Unit)? = null,
     onPlayPauseClick: () -> Unit,
     onRewind10Click: () -> Unit,
     onForward10Click: () -> Unit,
@@ -34,6 +40,7 @@ fun PlayerControlsOverlay(
     onSeek: (Long) -> Unit,
     onCycleSpeed: () -> Unit,
     onOpenEpisodeSheet: () -> Unit,
+    onBackgroundClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -42,27 +49,49 @@ fun PlayerControlsOverlay(
         exit = fadeOut(),
         modifier = modifier.fillMaxSize()
     ) {
+        val interactionSource = remember { MutableInteractionSource() }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null
+                ) { onBackgroundClick() }
         ) {
-            PlayerTopControls(
-                title = title,
-                episode = episode,
-                isAutoSkipEnabled = isAutoSkipEnabled,
-                onToggleAutoSkip = onToggleAutoSkip,
-                isScreenLocked = false,
-                onToggleLock = onToggleLock,
-                onBackClick = onBackClick,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+            // Top Gradient Scrim & Controls
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.85f),
+                                Color.Black.copy(alpha = 0.45f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            ) {
+                PlayerTopControls(
+                    title = title,
+                    episode = episode,
+                    isAutoSkipEnabled = isAutoSkipEnabled,
+                    onToggleAutoSkip = onToggleAutoSkip,
+                    isScreenLocked = false,
+                    onToggleLock = onToggleLock,
+                    onBackClick = onBackClick
+                )
+            }
 
+            // Center Playback Controls
             PlayerCenterControls(
                 isPlaying = isPlaying,
                 isBuffering = isBuffering,
                 isLoadingStream = isLoadingStream,
                 hasNextEpisode = hasNextEpisode,
+                errorMessage = errorMessage,
+                onRetryClick = onRetryClick,
                 onPlayPauseClick = onPlayPauseClick,
                 onRewind10Click = onRewind10Click,
                 onForward10Click = onForward10Click,
@@ -70,15 +99,29 @@ fun PlayerControlsOverlay(
                 modifier = Modifier.align(Alignment.Center)
             )
 
-            PlayerBottomControls(
-                currentPosition = currentPosition,
-                duration = duration,
-                playbackSpeed = playbackSpeed,
-                onSeek = onSeek,
-                onCycleSpeed = onCycleSpeed,
-                onOpenEpisodeSheet = onOpenEpisodeSheet,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+            // Bottom Gradient Scrim & Controls
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.50f),
+                                Color.Black.copy(alpha = 0.90f)
+                            )
+                        )
+                    )
+            ) {
+                PlayerBottomControls(
+                    currentPosition = currentPosition,
+                    duration = duration,
+                    playbackSpeed = playbackSpeed,
+                    onSeek = onSeek,
+                    onCycleSpeed = onCycleSpeed,
+                    onOpenEpisodeSheet = onOpenEpisodeSheet
+                )
+            }
         }
     }
 }

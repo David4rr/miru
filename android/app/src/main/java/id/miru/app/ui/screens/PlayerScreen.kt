@@ -27,6 +27,8 @@ import id.miru.app.ui.components.player.PlayerGestureOverlay
 import id.miru.app.ui.components.player.PlayerLockOverlay
 import id.miru.app.ui.components.player.PlayerSkipOverlay
 import id.miru.app.ui.components.player.PlayerVideoSurface
+import id.miru.app.ui.components.player.cycleNextSpeed
+import id.miru.app.ui.components.player.fetchResumePositionMs
 import id.miru.app.ui.components.player.prepareMediaStream
 import id.miru.app.ui.components.player.rememberExoPlayerWithLifecycle
 import id.miru.app.ui.components.player.saveWatchProgressAsync
@@ -42,16 +44,16 @@ fun PlayerScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
-    val window = activity?.window
     val scope = rememberCoroutineScope()
     var currentEpisode by remember { mutableIntStateOf(episode) }
     var isPlaying by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
     var isLoadingStream by remember { mutableStateOf(true) }
+    var streamErrorMessage by remember { mutableStateOf<String?>(null) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var areControlsVisible by remember { mutableStateOf(true) }
+    var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isScreenLocked by remember { mutableStateOf(false) }
     var showUnlockButton by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
@@ -60,34 +62,42 @@ fun PlayerScreen(
     var showEpisodeSheet by remember { mutableStateOf(false) }
     var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }
     var hasSkippedIntro by remember(currentEpisode) { mutableStateOf(false) }
-    var hasSkippedOutro by remember(currentEpisode) { mutableStateOf(false) }
     var seekRippleSide by remember { mutableStateOf<String?>(null) }
     val totalEpisodes = if (anime.isNotYetReleased) 0 else (anime.episodes ?: 12)
 
-    fun saveProgress(explicitProgress: Int? = null) {
-        saveWatchProgressAsync(anime.slug, currentEpisode, currentPosition, duration, explicitProgress)
+    fun ping() { lastInteraction = System.currentTimeMillis(); areControlsVisible = true }
+    fun saveProgress(explicit: Int? = null) {
+        saveWatchProgressAsync(anime.slug, currentEpisode, currentPosition, duration, explicit)
     }
 
     val exoPlayer = rememberExoPlayerWithLifecycle(
-        context = context, activity = activity, window = window,
-        onIsPlayingChanged = { isPlaying = it },
-        onBufferingChanged = { isBuffering = it },
+        context = context, activity = context as? Activity, window = (context as? Activity)?.window,
+        onIsPlayingChanged = { isPlaying = it }, onBufferingChanged = { isBuffering = it },
         onDurationChanged = { duration = it },
-        onPlaybackEnded = {
-            saveProgress(100)
-            if (currentEpisode < totalEpisodes) currentEpisode += 1
-        },
+        onPlaybackEnded = { saveProgress(100); if (currentEpisode < totalEpisodes) currentEpisode += 1 },
         onDisposePlayer = { saveProgress() }
     )
 
-    LaunchedEffect(currentEpisode) {
-        isLoadingStream = true
-        isBuffering = true
-        prepareMediaStream(
-            slug = anime.slug, episode = currentEpisode, malId = anime.idMal, exoPlayer = exoPlayer,
-            onSuccess = { res -> resolvedStream = res; isLoadingStream = false; saveProgress(0) },
-            onFailure = { isLoadingStream = false; isBuffering = false }
-        )
+    fun loadStream() {
+        isLoadingStream = true; isBuffering = true; streamErrorMessage = null
+        scope.launch {
+            val resumeMs = fetchResumePositionMs(anime.slug, currentEpisode)
+            prepareMediaStream(
+                slug = anime.slug, episode = currentEpisode, malId = anime.idMal, exoPlayer = exoPlayer,
+                resumePositionMs = resumeMs,
+                onSuccess = { res -> resolvedStream = res; isLoadingStream = false; ping() },
+                onFailure = { err -> isLoadingStream = false; isBuffering = false; streamErrorMessage = err }
+            )
+        }
+    }
+
+    LaunchedEffect(currentEpisode) { loadStream() }
+
+    LaunchedEffect(areControlsVisible, isPlaying, isBuffering, isLoadingStream, lastInteraction) {
+        if (areControlsVisible && isPlaying && !isBuffering && !isLoadingStream && streamErrorMessage == null) {
+            delay(3500)
+            areControlsVisible = false
+        }
     }
 
     LaunchedEffect(exoPlayer, isAutoSkipEnabled, resolvedStream, currentEpisode) {
@@ -95,100 +105,76 @@ fun PlayerScreen(
         while (true) {
             currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
             if (duration <= 0 && exoPlayer.duration > 0) duration = exoPlayer.duration
-
-            if (isAutoSkipEnabled && isPlaying) {
-                val curSec = currentPosition / 1000.0
-                val intro = resolvedStream?.intro
-                val outro = resolvedStream?.outro
-
-                if (!hasSkippedIntro && intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 1.0)) {
-                    exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
-                    hasSkippedIntro = true
-                    autoSkipNotice = "⏩ Lewati Intro Otomatis (+${(intro.end - intro.start).toInt()}d)"
-                }
-
-                if (!hasSkippedOutro && outro != null && outro.end > outro.start && curSec >= outro.start && curSec < (outro.end - 2.0)) {
-                    hasSkippedOutro = true
-                    saveProgress(100)
-                    if (currentEpisode < totalEpisodes) {
-                        autoSkipNotice = "⏩ Lewati Penutup (Episode Berikutnya)"
-                        currentEpisode += 1
-                    } else {
-                        exoPlayer.seekTo(((outro.end + 0.5) * 1000).toLong())
-                        autoSkipNotice = "⏩ Lewati Penutup"
-                    }
-                }
+            val intro = resolvedStream?.intro
+            val curSec = currentPosition / 1000.0
+            if (isAutoSkipEnabled && isPlaying && !hasSkippedIntro && intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 1.0)) {
+                exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
+                hasSkippedIntro = true
+                autoSkipNotice = "⏩ Lewati Intro (+${(intro.end - intro.start).toInt()}d)"
             }
-
-            tick++
-            if (tick % 10 == 0 && isPlaying) saveProgress()
+            if (++tick % 10 == 0 && isPlaying) saveProgress()
             delay(400)
         }
     }
 
-    LaunchedEffect(autoSkipNotice) {
-        if (autoSkipNotice != null) { delay(3000); autoSkipNotice = null }
-    }
-
-    BackHandler {
-        saveProgress()
-        exoPlayer.stop()
-        onBackClick()
-    }
+    LaunchedEffect(autoSkipNotice) { if (autoSkipNotice != null) { delay(3000); autoSkipNotice = null } }
+    BackHandler { saveProgress(); exoPlayer.stop(); onBackClick() }
 
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
         PlayerVideoSurface(
             exoPlayer = exoPlayer, isScreenLocked = isScreenLocked,
-            onToggleControls = { areControlsVisible = !areControlsVisible },
+            onToggleControls = { if (areControlsVisible) areControlsVisible = false else ping() },
             onToggleUnlockButton = { showUnlockButton = !showUnlockButton },
             onDoubleTapSeek = { isLeft ->
                 val delta = if (isLeft) -10_000 else 10_000
                 exoPlayer.seekTo((exoPlayer.currentPosition + delta).coerceIn(0, duration))
                 seekRippleSide = if (isLeft) "left" else "right"
-                scope.launch { delay(600); seekRippleSide = null }
+                ping(); scope.launch { delay(600); seekRippleSide = null }
             }
         )
-
         PlayerGestureOverlay(false, 50, false, 50, seekRippleSide)
 
         val curSec = currentPosition / 1000.0
         val intro = resolvedStream?.intro
         val outro = resolvedStream?.outro
-        val showSkipIntro = intro != null && intro.end > intro.start && curSec >= intro.start && curSec < intro.end
-        val showSkipOutro = outro != null && outro.end > outro.start && curSec >= outro.start && curSec < outro.end
+        val showIntroBtn = intro != null && intro.end > intro.start && curSec >= intro.start && curSec < intro.end
+        val showOutroBtn = outro != null && outro.end > outro.start && curSec >= outro.start && curSec < outro.end
 
         PlayerSkipOverlay(
-            autoSkipNotice = autoSkipNotice, showSkipIntroBtn = showSkipIntro, showSkipOutroBtn = showSkipOutro,
+            autoSkipNotice = autoSkipNotice, showSkipIntroBtn = showIntroBtn && !isAutoSkipEnabled,
+            showSkipOutroBtn = showOutroBtn, areControlsVisible = areControlsVisible,
             onSkipClick = {
-                if (showSkipIntro && intro != null) exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
-                else if (showSkipOutro && outro != null) {
+                if (showIntroBtn && intro != null) exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
+                else if (showOutroBtn && outro != null) {
                     saveProgress(100)
                     if (currentEpisode < totalEpisodes) currentEpisode += 1 else exoPlayer.seekTo(((outro.end + 0.5) * 1000).toLong())
                 }
             }
         )
 
-        PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; areControlsVisible = true }, modifier = Modifier.align(Alignment.Center))
+        PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; ping() }, modifier = Modifier.align(Alignment.Center))
 
         if (!isScreenLocked) {
             PlayerControlsOverlay(
                 isVisible = areControlsVisible, title = anime.title, episode = currentEpisode,
-                isAutoSkipEnabled = isAutoSkipEnabled, onToggleAutoSkip = { isAutoSkipEnabled = !isAutoSkipEnabled },
+                isAutoSkipEnabled = isAutoSkipEnabled, onToggleAutoSkip = { isAutoSkipEnabled = !isAutoSkipEnabled; ping() },
                 onToggleLock = { isScreenLocked = true; areControlsVisible = false; showUnlockButton = true },
                 onBackClick = { saveProgress(); exoPlayer.stop(); onBackClick() },
                 isPlaying = isPlaying, isBuffering = isBuffering, isLoadingStream = isLoadingStream,
-                hasNextEpisode = currentEpisode < totalEpisodes, onPlayPauseClick = { if (isPlaying) exoPlayer.pause() else exoPlayer.play() },
-                onRewind10Click = { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000).coerceAtLeast(0)) },
-                onForward10Click = { exoPlayer.seekTo((exoPlayer.currentPosition + 10_000).coerceAtMost(duration)) },
-                onNextEpisodeClick = { if (currentEpisode < totalEpisodes) currentEpisode += 1 },
+                hasNextEpisode = currentEpisode < totalEpisodes, errorMessage = streamErrorMessage,
+                onRetryClick = { loadStream() },
+                onPlayPauseClick = { if (isPlaying) exoPlayer.pause() else exoPlayer.play(); ping() },
+                onRewind10Click = { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000).coerceAtLeast(0)); ping() },
+                onForward10Click = { exoPlayer.seekTo((exoPlayer.currentPosition + 10_000).coerceAtMost(duration)); ping() },
+                onNextEpisodeClick = { if (currentEpisode < totalEpisodes) currentEpisode += 1; ping() },
                 currentPosition = currentPosition, duration = duration, playbackSpeed = playbackSpeed,
-                onSeek = { target -> exoPlayer.seekTo(target) },
+                onSeek = { target -> exoPlayer.seekTo(target); ping() },
                 onCycleSpeed = {
-                    val speeds = listOf(1.0f, 1.25f, 1.5f, 2.0f)
-                    playbackSpeed = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.size]
+                    playbackSpeed = cycleNextSpeed(playbackSpeed)
                     exoPlayer.playbackParameters = PlaybackParameters(playbackSpeed)
+                    ping()
                 },
-                onOpenEpisodeSheet = { showEpisodeSheet = true }
+                onOpenEpisodeSheet = { showEpisodeSheet = true }, onBackgroundClick = { areControlsVisible = false }
             )
         }
 
