@@ -89,3 +89,28 @@ data class ResolvedStream(
     val outro: SkipInterval = SkipInterval(),
     val proxiedMasterUrl: String
 )
+
+data class AppRelease(
+    val tagName: String,
+    val versionName: String,
+    val title: String,
+    val body: String,
+    val publishedAt: String,
+    val downloadUrl: String?,
+    val apkSize: Long,
+    val isNewer: Boolean = false
+) {
+    val displaySize: String
+        get() = if (apkSize > 0) {
+            String.format(java.util.Locale.US, "%.1f MB", apkSize / (1024.0 * 1024.0))
+        } else {
+            ""
+        }
+}
+
+sealed class UpdateDownloadState {
+    object Idle : UpdateDownloadState()
+    data class Downloading(val progress: Float, val downloadedBytes: Long, val totalBytes: Long) : UpdateDownloadState()
+    data class ReadyToInstall(val apkFile: java.io.File) : UpdateDownloadState()
+    data class Error(val message: String) : UpdateDownloadState()
+}

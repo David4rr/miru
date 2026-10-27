@@ -161,13 +161,6 @@ fun HomeScreen(
                                     color = Color.White,
                                     letterSpacing = 1.5.sp
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(CrunchyOrange)
-                                )
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             IconButton(onClick = { loadData() }) {
