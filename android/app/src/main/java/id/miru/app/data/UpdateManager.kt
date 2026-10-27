@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.4"
+        "0.2.5"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,27 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.5",
+                versionName = "0.2.5",
+                title = "Miru Android v0.2.5 (Fix Detail & Player Screen Exit Crash)",
+                body = """
+                    ### Miru Android v0.2.5
+
+                    #### 🐛 Perbaikan Bug Kritis (Critical Bugfix):
+                    - **Mengatasi Crash Tombol Kembali di Halaman Detail & Pemutar:** Memperbaiki crash fatal `NullPointerException` saat menekan tombol kembali (Back button / gesture) dari layar Detail anime maupun Pemutar video dengan menyimpan state non-null selama transisi keluar AnimatedContent.
+                    - **Transisi Keluar Layar Mulus:** Animasi fade-out saat menutup Detail atau Pemutar video kini berjalan lancar tanpa kedipan atau interupsi.
+
+                    #### 👁️ Fitur Unggulan v0.2.4 Termasuk:
+                    - Desain logo resmi "The Chrono Eye", ikon peluncur adaptif, dan splash screen window cold-start.
+                    - Penjeda otomatis pemutar di latar belakang untuk mencegah kebocoran audio.
+                    - Kunci refresh rate 120Hz dan dok navigasi OLED beranimasi.
+                """.trimIndent(),
+                publishedAt = "2026-10-27",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.5/Miru-v0.2.5-release.apk",
+                apkSize = 22600000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.4",
                 versionName = "0.2.4",

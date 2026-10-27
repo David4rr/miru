@@ -84,6 +84,8 @@ fun MainApp() {
     var activePlayingSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }
     var availableUpdate by remember { mutableStateOf<AppRelease?>(null) }; var showUpdateSheet by remember { mutableStateOf(false) }
     var showScheduleScreen by remember { mutableStateOf(false) }; var isUpdateBannerDismissed by remember { mutableStateOf(false) }
+    var lastAnime by remember { mutableStateOf<AnimeCard?>(null) }; if (selectedAnime != null) lastAnime = selectedAnime
+    var lastSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }; if (activePlayingSession != null) lastSession = activePlayingSession
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -114,13 +116,12 @@ fun MainApp() {
         label = "screenTransition"
     ) { mode ->
         when (mode) {
-            3 -> {
-                val (anime, ep) = activePlayingSession!!
+            3 -> (activePlayingSession ?: lastSession)?.let { (anime, ep) ->
                 PlayerScreen(anime = anime, episode = ep, onBackClick = { activePlayingSession = null })
             }
-            2 -> {
+            2 -> (selectedAnime ?: lastAnime)?.let { anime ->
                 BackHandler { selectedAnime = null }
-                DetailScreen(anime = selectedAnime!!, onBackClick = { selectedAnime = null }, onPlayEpisodeClick = { a, ep -> activePlayingSession = Pair(a, ep) })
+                DetailScreen(anime = anime, onBackClick = { selectedAnime = null }, onPlayEpisodeClick = { a, ep -> activePlayingSession = Pair(a, ep) })
             }
             1 -> {
                 BackHandler { showScheduleScreen = false }
