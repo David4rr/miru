@@ -38,6 +38,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/home", get(home_handler))
         .route("/api/schedule", get(schedule_handler))
         .route("/api/search", get(search_handler))
+        .route("/api/anime/editions", get(editions_handler))
         .route("/api/stream/resolve", get(resolve_stream_handler))
         .route("/api/player/video", get(proxy::proxy_video_handler))
         .route("/api/player/sub", get(sub_handler))
@@ -122,6 +123,51 @@ async fn resolve_stream_handler(
     let mode = params.mode.unwrap_or_else(|| "sub".to_string());
     match api::stream::resolve_stream(&params.slug, params.ep, &mode, params.mal_id, &state.db).await {
         Ok(stream) => Json(json!({ "success": true, "data": stream })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct EditionsParams {
+    id: Option<i64>,
+    slug: Option<String>,
+}
+
+async fn editions_handler(
+    State(state): State<AppState>,
+    Query(params): Query<EditionsParams>,
+) -> Response {
+    let target_id = match params.id {
+        Some(i) if i > 0 => Some(i),
+        _ => {
+            if let Some(slug) = &params.slug {
+                crate::api::stream::try_extract_anilist_id_from_slug(slug)
+            } else {
+                None
+            }
+        }
+    };
+
+    let target_id = match target_id {
+        Some(i) => i,
+        None => {
+            if let Some(slug) = &params.slug {
+                let title = crate::api::stream::clean_slug_to_title(slug);
+                match api::anilist::search_anime(&title, 1, 1, &state.db).await {
+                    Ok(cards) if !cards.is_empty() => cards[0].id,
+                    _ => return (StatusCode::NOT_FOUND, Json(json!({ "success": false, "error": "Anime ID not found" }))).into_response(),
+                }
+            } else {
+                return (StatusCode::BAD_REQUEST, Json(json!({ "success": false, "error": "Missing id or slug" }))).into_response();
+            }
+        }
+    };
+
+    match api::anilist::fetch_anime_editions(target_id).await {
+        Ok(editions) => Json(json!({ "success": true, "data": editions })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "success": false, "error": err.to_string() })),

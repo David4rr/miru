@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 256" width="700" height="256" role="img" aria-labelledby="titleBLockup">
+  <title id="titleBLockup">Miru logo - Concept B Horizontal Lockup</title>
+  <g id="symbol" transform="translate(16, 0)">
+    <path fill="#090A0E" fill-rule="evenodd" d="
+    M 36 208
+    L 36 48
+    L 84 48
+    L 128 124
+    L 172 48
+    L 220 48
+    L 220 208
+    L 176 208
+    L 176 112
+    L 138 178
+    L 118 178
+    L 80 112
+    L 80 208 Z
+    M 110 88
+    L 110 148
+    L 162 118 Z
+  "/>
+  </g>
+  <g id="wordmark">
+    
+    <!-- M -->
+    <path fill="#090A0E" d="M 280 180 L 280 76 L 304 76 L 328 134 L 352 76 L 376 76 L 376 180 L 352 180 L 352 116 L 328 170 L 304 116 L 304 180 Z"/>
+    <!-- I -->
+    <path fill="#090A0E" d="M 400 76 L 424 76 L 424 180 L 400 180 Z"/>
+    <!-- R -->
+    <path fill="#090A0E" fill-rule="evenodd" d="
+      M 448 180 L 448 76 L 504 76 C 524 76, 536 88, 536 106 C 536 122, 524 132, 506 134 L 536 180 L 508 180 L 482 135 L 472 135 L 472 180 Z
+      M 472 96 L 500 96 C 510 96, 514 100, 514 106 C 514 112, 510 116, 500 116 L 472 116 Z
+    "/>
+    <!-- U -->
+    <path fill="#090A0E" d="M 560 76 L 584 76 L 584 144 C 584 156, 592 162, 604 162 C 616 162, 624 156, 624 144 L 624 76 L 648 76 L 648 144 C 648 168, 630 182, 604 182 C 578 182, 560 168, 560 144 Z"/>
+    
+  </g>
+</svg>

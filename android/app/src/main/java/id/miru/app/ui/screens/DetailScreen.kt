@@ -30,6 +30,9 @@ import id.miru.app.data.AnimeCard
 import id.miru.app.data.ApiClient
 import id.miru.app.data.BookmarkItem
 import id.miru.app.data.WatchHistoryItem
+import androidx.activity.compose.BackHandler
+import id.miru.app.data.AnimeEdition
+import id.miru.app.ui.components.detail.DetailEditionsSection
 import id.miru.app.ui.components.detail.DetailEpisodeList
 import id.miru.app.ui.components.detail.DetailHeroHeader
 import id.miru.app.ui.components.detail.DetailSynopsisSection
@@ -43,24 +46,25 @@ fun DetailScreen(
     onPlayEpisodeClick: (AnimeCard, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var currentAnime by remember(anime) { mutableStateOf(anime) }
     var isBookmarked by remember { mutableStateOf(false) }
     var watchedHistory by remember { mutableStateOf<WatchHistoryItem?>(null) }
+    var editions by remember(currentAnime.slug) { mutableStateOf<List<AnimeEdition>>(emptyList()) }
     var isSynopsisExpanded by remember { mutableStateOf(false) }
     var translatedSynopsis by remember { mutableStateOf<String?>(null) }
     var isTranslating by remember { mutableStateOf(false) }
     var showOriginalSynopsis by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(anime.slug) {
-        ApiClient.getBookmarks().onSuccess { list ->
-            isBookmarked = list.any { it.slug == anime.slug }
-        }
-        ApiClient.getHistory().onSuccess { list ->
-            watchedHistory = list.firstOrNull { it.slug == anime.slug }
-        }
+    BackHandler(enabled = currentAnime != anime) { currentAnime = anime }
+
+    LaunchedEffect(currentAnime.slug) {
+        ApiClient.getBookmarks().onSuccess { list -> isBookmarked = list.any { it.slug == currentAnime.slug } }
+        ApiClient.getHistory().onSuccess { list -> watchedHistory = list.firstOrNull { it.slug == currentAnime.slug } }
+        ApiClient.getAnimeEditions(currentAnime.id, currentAnime.slug).onSuccess { list -> editions = list }
     }
 
-    val totalEpisodes = if (anime.isNotYetReleased) 0 else (anime.episodes ?: 12)
+    val totalEpisodes = if (currentAnime.isNotYetReleased) 0 else (currentAnime.episodes ?: 12)
     val lastWatchedEp = watchedHistory?.episode ?: 1
     val lastProgress = watchedHistory?.progress ?: 0
     val isLastEpFinished = lastProgress >= 85
@@ -71,7 +75,7 @@ fun DetailScreen(
     }
     val currentProgress = if (isLastEpFinished) 0 else lastProgress
 
-    val rawSynopsis = anime.cleanSynopsis ?: "Belum ada sinopsis resmi untuk anime ini."
+    val rawSynopsis = currentAnime.cleanSynopsis ?: "Belum ada sinopsis resmi untuk anime ini."
     val currentSynopsis = if (showOriginalSynopsis || translatedSynopsis == null) rawSynopsis else translatedSynopsis!!
 
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
@@ -81,22 +85,22 @@ fun DetailScreen(
         ) {
             item {
                 DetailHeroHeader(
-                    anime = anime,
+                    anime = currentAnime,
                     isBookmarked = isBookmarked,
                     onToggleBookmark = {
                         val willBeBookmarked = !isBookmarked
                         isBookmarked = willBeBookmarked
                         scope.launch {
                             if (willBeBookmarked) {
-                                ApiClient.addBookmark(BookmarkItem(slug = anime.slug, title = anime.title, poster = anime.poster, type = anime.status ?: "ANIME"))
+                                ApiClient.addBookmark(BookmarkItem(slug = currentAnime.slug, title = currentAnime.title, poster = currentAnime.poster, type = currentAnime.status ?: "ANIME"))
                             } else {
-                                ApiClient.removeBookmark(anime.slug)
+                                ApiClient.removeBookmark(currentAnime.slug)
                             }
                         }
                     },
                     resumeEpisode = resumeEpisode,
-                    isUpcoming = anime.isNotYetReleased,
-                    onPlayClick = { ep -> onPlayEpisodeClick(anime, ep) }
+                    isUpcoming = currentAnime.isNotYetReleased,
+                    onPlayClick = { ep -> onPlayEpisodeClick(currentAnime, ep) }
                 )
             }
 
@@ -126,21 +130,29 @@ fun DetailScreen(
                 )
             }
 
+            if (editions.size > 1) {
+                item {
+                    DetailEditionsSection(
+                        editions = editions,
+                        onEditionClick = { ed -> currentAnime = ed.toAnimeCard() }
+                    )
+                }
+            }
+
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 DetailEpisodeList(
                     totalEpisodes = totalEpisodes,
-                    posterUrl = anime.poster,
+                    posterUrl = currentAnime.poster,
                     resumeEpisode = resumeEpisode,
                     currentProgress = currentProgress,
-                    isUpcoming = anime.isNotYetReleased,
-                    onEpisodeClick = { ep -> onPlayEpisodeClick(anime, ep) }
+                    isUpcoming = currentAnime.isNotYetReleased,
+                    onEpisodeClick = { ep -> onPlayEpisodeClick(currentAnime, ep) }
                 )
             }
         }
-
         IconButton(
-            onClick = onBackClick,
+            onClick = { if (currentAnime != anime) currentAnime = anime else onBackClick() },
             modifier = Modifier
                 .statusBarsPadding()
                 .padding(start = 12.dp, top = 8.dp)

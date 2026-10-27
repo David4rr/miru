@@ -10,6 +10,9 @@ import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -101,6 +104,7 @@ fun rememberExoPlayerWithLifecycle(
     onPlaybackEnded: () -> Unit,
     onDisposePlayer: () -> Unit
 ): ExoPlayer {
+    val lifecycleOwner = LocalLifecycleOwner.current
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(15_000, 50_000, 1_500, 3_000)
@@ -108,7 +112,7 @@ fun rememberExoPlayerWithLifecycle(
         ExoPlayer.Builder(context).setLoadControl(loadControl).build().apply { playWhenReady = true }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(lifecycleOwner) {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -116,7 +120,7 @@ fun rememberExoPlayerWithLifecycle(
         insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController?.hide(WindowInsetsCompat.Type.systemBars())
 
-        val listener = object : Player.Listener {
+        val playerListener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { onIsPlayingChanged(playing) }
             override fun onPlaybackStateChanged(state: Int) {
                 onBufferingChanged(state == Player.STATE_BUFFERING)
@@ -124,10 +128,26 @@ fun rememberExoPlayerWithLifecycle(
                 if (state == Player.STATE_ENDED) onPlaybackEnded()
             }
         }
-        exoPlayer.addListener(listener)
+        exoPlayer.addListener(playerListener)
+
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    exoPlayer.pause()
+                    onDisposePlayer()
+                }
+                Lifecycle.Event.ON_DESTROY -> {
+                    exoPlayer.release()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
             onDisposePlayer()
-            exoPlayer.removeListener(listener)
+            exoPlayer.removeListener(playerListener)
             exoPlayer.release()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

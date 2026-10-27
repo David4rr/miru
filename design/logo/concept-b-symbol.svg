@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="titleB">
+  <title id="titleB">Miru logo - Concept B: The Vision M</title>
+  <path fill="#090A0E" fill-rule="evenodd" d="
+    M 36 208
+    L 36 48
+    L 84 48
+    L 128 124
+    L 172 48
+    L 220 48
+    L 220 208
+    L 176 208
+    L 176 112
+    L 138 178
+    L 118 178
+    L 80 112
+    L 80 208 Z
+    M 110 88
+    L 110 148
+    L 162 118 Z
+  "/>
+</svg>

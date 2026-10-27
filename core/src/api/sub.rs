@@ -40,9 +40,14 @@ pub async fn fetch_aniskip_intervals(
         });
     }
 
+    let len_param = if episode_length <= 0.0 || (episode_length - 1440.0).abs() < 0.1 {
+        0
+    } else {
+        episode_length as i64
+    };
     let url = format!(
         "https://api.aniskip.com/v2/skip-times/{}/{}?types=op&types=ed&episodeLength={}",
-        mal_id, episode_num, episode_length as i64
+        mal_id, episode_num, len_param
     );
 
     let resp = HTTP_CLIENT.get(&url).send().await?;

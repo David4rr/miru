@@ -1,0 +1,16 @@
+<svg fill="#f47521" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="titleSymbolMaster"><title>Miru</title>
+  <title id="titleSymbolMaster">Miru symbol</title>
+  <path fill="#f47521" fill-rule="evenodd" d="M 28 128
+    C 56 64, 100 44, 128 44
+    C 156 44, 200 64, 228 128
+    C 200 192, 156 212, 128 212
+    C 100 212, 56 192, 28 128 Z
+    M 68 128
+    C 86 168, 110 180, 128 180
+    C 146 180, 170 168, 188 128
+    C 170 88, 146 76, 128 76
+    C 110 76, 86 88, 68 128 Z
+    M 110 98
+    L 110 158
+    L 162 128 Z"/>
+</svg>

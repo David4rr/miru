@@ -218,6 +218,35 @@ object UpdateManager {
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
             AppRelease(
+                tagName = "v0.2.3",
+                versionName = "0.2.3",
+                title = "Miru Android v0.2.3 (120Hz Fluid Motion, Elevated OLED Nav, Smart Skip & Franchise Seasons)",
+                body = """
+                    ### Miru Android v0.2.3
+
+                    #### ⚡ Performa 120Hz & Transisi Halus (Fluid Motion):
+                    - **Dukungan 120Hz High Refresh Rate:** Integrasi API WindowManager DisplayMode untuk mengunci refresh rate layar maksimum perangkat (90Hz / 120Hz / 144Hz) tanpa throttle ke 60Hz.
+                    - **Transisi Layar Animasi Lembut:** Mengganti pergantian layar instan dengan AnimatedContent spring dan crossfade lembut saat berpindah layar maupun tab navigasi.
+                    - **Optimasi Pemuatan Gambar Coil:** Konfigurasi memori cache 25% RAM, disk cache 150MB, hardware bitmap, dan crossfade halus saat menggulir ribuan poster anime.
+
+                    #### 🎨 Navigasi Bawah OLED Premium (Elevated Dock):
+                    - **Kapsul Indikator Aktif Dinamis:** Tab aktif kini dinaungi pill capsule bernuansa Crunchyroll Orange dengan animasi pegas (spring) yang responsif dan memantul.
+                    - **Pantulan Ikon Animatif (Scale Bounce):** Ikon tab yang dipilih membesar secara proporsional (1.15x) dengan garis aksen bercahaya yang modern dan tidak membosankan.
+
+                    #### ⏩ Perbaikan Logika Lewati Pembuka & Penutup (Smart Skip):
+                    - **Logika Skip Intro & Outro Akurat:** Mengatasi gagal deteksi AniSkip dengan parameter query episode universal, pencarian cerdas judul anime ke MAL ID, dan dukungan auto-skip outro langsung ke episode berikutnya.
+                    - **Tombol Lewati Cepat Universal:** Hadir tombol lewati intro (+85 detik standar) dan tombol episode berikutnya otomatis di bagian outro meski anime belum terdaftar di AniSkip.
+
+                    #### 📚 Urutan Musim & Edisi Anime Lengkap (Franchise Timeline):
+                    - **Daftar Urutan Musim (S1 - S...):** Menampilkan daftar berurutan kronologis untuk anime dengan banyak musim/edisi (misal Attack on Titan S1-S6, Demon Slayer, MHA) sehingga pengguna tahu urutan menonton yang tepat dari awal.
+                    - **Navigasi Edisi Instan:** Sekali sentuh pada edisi yang diinginkan langsung menampilkan episode dan detail anime musim tersebut.
+                """.trimIndent(),
+                publishedAt = "2026-10-27",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.3/Miru-v0.2.3-release.apk",
+                apkSize = 35900000L,
+                isNewer = false
+            ),
+            AppRelease(
                 tagName = "v0.2.0",
                 versionName = "0.2.0",
                 title = "Miru Android v0.2.0 (Brand Renaming, Auto-Skip & Modern Floating Nav)",

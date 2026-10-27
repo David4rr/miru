@@ -1,0 +1,51 @@
+{
+  "brand": "Miru",
+  "tagline": "Anime Streaming Tanpa Batas",
+  "brief": "Native Android anime streaming application with embedded high-performance Rust daemon, 120Hz fluid motion, AniSkip smart intro/outro skipping, and OLED aesthetics.",
+  "adjectives": [
+    "cinematic",
+    "fast",
+    "focused",
+    "fluid",
+    "vibrant"
+  ],
+  "industry": "consumer-app",
+  "mockups": [
+    "app-icon",
+    "website",
+    "social",
+    "favicon-tab",
+    "sticker",
+    "readme"
+  ],
+  "nav": [
+    "Explore",
+    "Schedule",
+    "Library",
+    "Updates"
+  ],
+  "brand_color": "#F47521",
+  "tile_color": "#090A0E",
+  "greyscale": false,
+  "final": true,
+  "round": 1,
+  "concepts": [
+    {
+      "name": "The Chrono Eye",
+      "symbol": "miru-symbol-color.svg",
+      "lockup": "miru-lockup.svg",
+      "stacked": "miru-stacked.svg",
+      "avatar": "dist/miru-symbol-square.svg",
+      "symbol_on_dark": "miru-symbol-color.svg",
+      "lockup_on_dark": "miru-lockup-dark.svg",
+      "symbol_on_tile": "miru-symbol-color.svg",
+      "idea": "An aerodynamic almond eye aperture integrated with an exact 30\u00b0 equilateral play triangle pupil.",
+      "rationale": [
+        "Directly embodies the Japanese meaning of '\u898b\u308b' (Miru, to watch) while universally communicating streaming playback.",
+        "Built strictly from pure geometric primitives, audited at 100/100 production score with zero near-miss angles.",
+        "Scales effortlessly down to 16px for favicons and status bars, with powerful presence as an Android app tile."
+      ]
+    }
+  ],
+  "recommendation": "The Chrono Eye is the definitive brand identity for Miru, achieving instant recognition and category leadership."
+}

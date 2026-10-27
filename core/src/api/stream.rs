@@ -33,7 +33,7 @@ pub struct ResolvedStream {
     pub proxied_master_url: String,
 }
 
-fn clean_slug_to_title(slug: &str) -> String {
+pub fn clean_slug_to_title(slug: &str) -> String {
     let parts: Vec<&str> = slug.split('-').collect();
     if parts.len() > 1 && parts.last().map(|p| p.chars().all(|c| c.is_ascii_digit())).unwrap_or(false) {
         parts[..parts.len() - 1].join(" ")
@@ -42,7 +42,7 @@ fn clean_slug_to_title(slug: &str) -> String {
     }
 }
 
-fn try_extract_anilist_id_from_slug(slug: &str) -> Option<i64> {
+pub fn try_extract_anilist_id_from_slug(slug: &str) -> Option<i64> {
     let parts: Vec<&str> = slug.split('-').collect();
     if parts.len() > 1 {
         if let Some(last) = parts.last() {
@@ -268,7 +268,10 @@ pub async fn resolve_stream(
             if let Some(al_id) = try_extract_anilist_id_from_slug(slug) {
                 crate::api::anilist::get_mal_id_by_anilist_id(al_id).await.unwrap_or(None)
             } else {
-                None
+                let title = clean_slug_to_title(slug);
+                crate::api::anilist::search_anime(&title, 1, 1, db).await.ok()
+                    .and_then(|cards| cards.into_iter().next())
+                    .and_then(|c| c.id_mal)
             }
         }
     };
@@ -293,7 +296,7 @@ pub async fn resolve_stream(
 
     // 4. Fetch AniSkip OP/ED intervals if MAL ID is available
     let (intro, outro) = if let Some(m_id) = target_mal_id {
-        if let Ok(aniskip) = fetch_aniskip_intervals(m_id, episode, 1440.0).await {
+        if let Ok(aniskip) = fetch_aniskip_intervals(m_id, episode, 0.0).await {
             let op_interval = aniskip.op.map(|i| SkipInterval { start: i.start, end: i.end }).unwrap_or(SkipInterval { start: 0.0, end: 0.0 });
             let ed_interval = aniskip.ed.map(|i| SkipInterval { start: i.start, end: i.end }).unwrap_or(SkipInterval { start: 0.0, end: 0.0 });
             (op_interval, ed_interval)

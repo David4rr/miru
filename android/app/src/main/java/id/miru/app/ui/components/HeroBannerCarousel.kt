@@ -1,11 +1,16 @@
 package id.miru.app.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -44,11 +49,17 @@ fun HeroBannerCarousel(
         if (!pagerState.isScrollInProgress) {
             delay(5000)
             val nextPage = (pagerState.currentPage + 1) % items.size
-            pagerState.animateScrollToPage(nextPage)
+            pagerState.animateScrollToPage(
+                page = nextPage,
+                animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing)
+            )
         }
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth()
@@ -60,23 +71,29 @@ fun HeroBannerCarousel(
             )
         }
 
-        // Pager Indicators
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Pager Indicators with generous breathing room and spaced-out dots
         Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(items.size) { index ->
                 val isSelected = pagerState.currentPage == index
-                val width by animateDpAsState(targetValue = if (isSelected) 20.dp else 6.dp, label = "dotWidth")
+                val width by animateDpAsState(
+                    targetValue = if (isSelected) 24.dp else 7.dp,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "dotWidth"
+                )
                 Box(
                     modifier = Modifier
-                        .height(6.dp)
                         .size(width = width, height = 6.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) CrunchyOrange else Color.White.copy(alpha = 0.4f))
+                        .background(if (isSelected) CrunchyOrange else Color.White.copy(alpha = 0.35f))
                         .clickable { scope.launch { pagerState.animateScrollToPage(index) } }
                 )
             }

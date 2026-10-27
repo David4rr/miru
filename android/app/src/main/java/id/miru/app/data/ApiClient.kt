@@ -359,6 +359,46 @@ object ApiClient {
         }
     }
 
+    suspend fun getAnimeEditions(animeId: Long, slug: String): Result<List<AnimeEdition>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedSlug = java.net.URLEncoder.encode(slug, "UTF-8")
+            val url = if (animeId > 0) {
+                "$BASE_URL/api/anime/editions?id=$animeId&slug=$encodedSlug"
+            } else {
+                "$BASE_URL/api/anime/editions?slug=$encodedSlug"
+            }
+            val request = Request.Builder().url(url).get().build()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) return@runCatching emptyList()
+                val json = JSONObject(resp.body?.string().orEmpty())
+                val arr = json.optJSONArray("data") ?: return@runCatching emptyList()
+                val list = mutableListOf<AnimeEdition>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    list.add(
+                        AnimeEdition(
+                            id = obj.optLong("id"),
+                            idMal = if (obj.has("id_mal") && !obj.isNull("id_mal")) obj.optLong("id_mal") else null,
+                            slug = obj.optString("slug"),
+                            title = obj.optString("title"),
+                            titleEnglish = if (obj.has("title_english") && !obj.isNull("title_english")) obj.optString("title_english") else null,
+                            format = obj.optString("format", "TV"),
+                            status = if (obj.has("status") && !obj.isNull("status")) obj.optString("status") else null,
+                            seasonYear = if (obj.has("season_year") && !obj.isNull("season_year")) obj.optInt("season_year") else null,
+                            episodes = if (obj.has("episodes") && !obj.isNull("episodes")) obj.optInt("episodes") else null,
+                            poster = obj.optString("poster"),
+                            score = if (obj.has("score") && !obj.isNull("score")) obj.optDouble("score") else null,
+                            editionLabel = obj.optString("edition_label", "S1"),
+                            isCurrent = obj.optBoolean("is_current", false),
+                            dateOrder = obj.optLong("date_order", 0L)
+                        )
+                    )
+                }
+                list
+            }
+        }
+    }
+
     private fun parseScheduleItems(array: JSONArray?): List<ScheduleItem> {
         if (array == null) return emptyList()
         val list = mutableListOf<ScheduleItem>()

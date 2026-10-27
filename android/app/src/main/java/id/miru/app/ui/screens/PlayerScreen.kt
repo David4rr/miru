@@ -46,23 +46,15 @@ fun PlayerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var currentEpisode by remember { mutableIntStateOf(episode) }
-    var isPlaying by remember { mutableStateOf(true) }
-    var isBuffering by remember { mutableStateOf(true) }
-    var isLoadingStream by remember { mutableStateOf(true) }
-    var streamErrorMessage by remember { mutableStateOf<String?>(null) }
-    var currentPosition by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
-    var areControlsVisible by remember { mutableStateOf(true) }
-    var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var isScreenLocked by remember { mutableStateOf(false) }
-    var showUnlockButton by remember { mutableStateOf(false) }
-    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
-    var isAutoSkipEnabled by remember { mutableStateOf(true) }
-    var autoSkipNotice by remember { mutableStateOf<String?>(null) }
-    var showEpisodeSheet by remember { mutableStateOf(false) }
-    var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }
-    var hasSkippedIntro by remember(currentEpisode) { mutableStateOf(false) }
-    var seekRippleSide by remember { mutableStateOf<String?>(null) }
+    var isPlaying by remember { mutableStateOf(true) }; var isBuffering by remember { mutableStateOf(true) }
+    var isLoadingStream by remember { mutableStateOf(true) }; var streamErrorMessage by remember { mutableStateOf<String?>(null) }
+    var currentPosition by remember { mutableLongStateOf(0L) }; var duration by remember { mutableLongStateOf(0L) }
+    var areControlsVisible by remember { mutableStateOf(true) }; var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var isScreenLocked by remember { mutableStateOf(false) }; var showUnlockButton by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }; var isAutoSkipEnabled by remember { mutableStateOf(true) }
+    var autoSkipNotice by remember { mutableStateOf<String?>(null) }; var showEpisodeSheet by remember { mutableStateOf(false) }
+    var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }; var seekRippleSide by remember { mutableStateOf<String?>(null) }
+    var hasSkippedIntro by remember(currentEpisode) { mutableStateOf(false) }; var hasSkippedOutro by remember(currentEpisode) { mutableStateOf(false) }
     val totalEpisodes = if (anime.isNotYetReleased) 0 else (anime.episodes ?: 12)
 
     fun ping() { lastInteraction = System.currentTimeMillis(); areControlsVisible = true }
@@ -106,14 +98,27 @@ fun PlayerScreen(
             currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
             if (duration <= 0 && exoPlayer.duration > 0) duration = exoPlayer.duration
             val intro = resolvedStream?.intro
+            val outro = resolvedStream?.outro
             val curSec = currentPosition / 1000.0
-            if (isAutoSkipEnabled && isPlaying && !hasSkippedIntro && intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 1.0)) {
+            if (intro != null && intro.end > intro.start && curSec < (intro.start - 5.0)) hasSkippedIntro = false
+            if (outro != null && outro.end > outro.start && curSec < (outro.start - 5.0)) hasSkippedOutro = false
+            if (isAutoSkipEnabled && isPlaying && !hasSkippedIntro && intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 0.5)) {
                 exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
                 hasSkippedIntro = true
-                autoSkipNotice = "⏩ Lewati Intro (+${(intro.end - intro.start).toInt()}d)"
+                autoSkipNotice = "⏩ Lewati Pembuka (+${(intro.end - intro.start).toInt()}d)"
+            }
+            if (isAutoSkipEnabled && isPlaying && !hasSkippedOutro && outro != null && outro.end > outro.start && curSec >= outro.start && curSec < (outro.end - 0.5)) {
+                hasSkippedOutro = true
+                if (currentEpisode < totalEpisodes) {
+                    saveProgress(100)
+                    autoSkipNotice = "⏩ Melompat ke Episode Berikutnya..."
+                    currentEpisode += 1
+                } else {
+                    exoPlayer.seekTo(((outro.end + 0.5) * 1000).toLong())
+                    autoSkipNotice = "⏩ Lewati Penutup"
+                }
             }
             if (++tick % 10 == 0 && isPlaying) saveProgress()
-            delay(400)
         }
     }
 
@@ -137,19 +142,26 @@ fun PlayerScreen(
         val curSec = currentPosition / 1000.0
         val intro = resolvedStream?.intro
         val outro = resolvedStream?.outro
-        val showIntroBtn = intro != null && intro.end > intro.start && curSec >= intro.start && curSec < intro.end
-        val showOutroBtn = outro != null && outro.end > outro.start && curSec >= outro.start && curSec < outro.end
+        val hasOp = intro != null && intro.end > intro.start
+        val hasEd = outro != null && outro.end > outro.start
+        val showIntroBtn = if (hasOp) curSec >= intro!!.start && curSec < intro.end else curSec in 4.0..95.0 && duration > 120_000L
+        val showOutroBtn = if (hasEd) curSec >= outro!!.start && curSec < outro.end else duration > 180_000L && curSec >= ((duration / 1000.0) - 85.0)
 
+        val onSkipIntro = {
+            val target = if (hasOp) ((intro!!.end + 0.5) * 1000).toLong() else (currentPosition + 85_000L).coerceAtMost(duration)
+            exoPlayer.seekTo(target); hasSkippedIntro = true; ping()
+        }
+        val onSkipOutro = {
+            hasSkippedOutro = true
+            if (currentEpisode < totalEpisodes) { saveProgress(100); currentEpisode += 1 }
+            else { exoPlayer.seekTo(if (hasEd) ((outro!!.end + 0.5) * 1000).toLong() else duration) }
+            ping()
+        }
         PlayerSkipOverlay(
-            autoSkipNotice = autoSkipNotice, showSkipIntroBtn = showIntroBtn && !isAutoSkipEnabled,
-            showSkipOutroBtn = showOutroBtn, areControlsVisible = areControlsVisible,
-            onSkipClick = {
-                if (showIntroBtn && intro != null) exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
-                else if (showOutroBtn && outro != null) {
-                    saveProgress(100)
-                    if (currentEpisode < totalEpisodes) currentEpisode += 1 else exoPlayer.seekTo(((outro.end + 0.5) * 1000).toLong())
-                }
-            }
+            autoSkipNotice = autoSkipNotice, showSkipIntroBtn = showIntroBtn, showSkipOutroBtn = showOutroBtn,
+            introLabel = if (hasOp) "Lewati Pembuka >>" else "Lewati Pembuka (+85s) >>",
+            outroLabel = if (currentEpisode < totalEpisodes) "Episode Berikutnya >>" else "Lewati Penutup >>",
+            areControlsVisible = areControlsVisible, onSkipIntroClick = onSkipIntro, onSkipOutroClick = onSkipOutro
         )
 
         PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; ping() }, modifier = Modifier.align(Alignment.Center))

@@ -203,3 +203,46 @@ sealed class UpdateDownloadState {
     data class ReadyToInstall(val apkFile: java.io.File) : UpdateDownloadState()
     data class Error(val message: String) : UpdateDownloadState()
 }
+
+data class AnimeEdition(
+    val id: Long,
+    val idMal: Long? = null,
+    val slug: String,
+    val title: String,
+    val titleEnglish: String? = null,
+    val format: String = "TV",
+    val status: String? = null,
+    val seasonYear: Int? = null,
+    val episodes: Int? = null,
+    val poster: String = "",
+    val score: Double? = null,
+    val editionLabel: String = "S1",
+    val isCurrent: Boolean = false,
+    val dateOrder: Long = 0L
+) {
+    val displayTitle: String
+        get() = titleEnglish?.takeIf { it.isNotBlank() } ?: title
+
+    val displaySubtitle: String
+        get() {
+            val parts = mutableListOf<String>()
+            seasonYear?.let { parts.add(it.toString()) }
+            if (episodes != null && episodes > 0) parts.add("$episodes Ep")
+            return parts.joinToString(" • ")
+        }
+
+    fun toAnimeCard(): AnimeCard {
+        return AnimeCard(
+            id = id,
+            idMal = idMal,
+            slug = slug,
+            title = title,
+            titleEnglish = titleEnglish,
+            poster = poster,
+            score = score,
+            episodes = episodes,
+            status = status,
+            seasonYear = seasonYear
+        )
+    }
+}

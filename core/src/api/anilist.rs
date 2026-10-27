@@ -541,3 +541,159 @@ pub async fn search_anime(query: &str, page: i32, per_page: i32, db: &Database) 
 
     Ok(cards)
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnimeEdition {
+    pub id: i64,
+    pub id_mal: Option<i64>,
+    pub slug: String,
+    pub title: String,
+    pub title_english: Option<String>,
+    pub format: String,
+    pub status: Option<String>,
+    pub season_year: Option<i32>,
+    pub episodes: Option<i32>,
+    pub poster: String,
+    pub score: Option<f64>,
+    pub edition_label: String,
+    pub is_current: bool,
+    pub date_order: i64,
+}
+
+const EDITIONS_QUERY: &str = r#"
+query AnimeRelations($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id idMal format status episodes seasonYear averageScore
+    startDate { year month day }
+    title { romaji english }
+    coverImage { large medium }
+    relations {
+      edges {
+        relationType
+        node {
+          id idMal type format status episodes seasonYear averageScore
+          startDate { year month day }
+          title { romaji english }
+          coverImage { large medium }
+          relations {
+            edges {
+              relationType
+              node {
+                id idMal type format status episodes seasonYear averageScore
+                startDate { year month day }
+                title { romaji english }
+                coverImage { large medium }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#;
+
+pub async fn fetch_anime_editions(target_id: i64) -> Result<Vec<AnimeEdition>> {
+    let variables = json!({ "id": target_id });
+    let res = query_anilist(EDITIONS_QUERY, variables).await?;
+    let root = res.get("data")
+        .and_then(|d| d.get("Media"))
+        .ok_or_else(|| anyhow!("Anime not found for editions query"))?;
+
+    let mut map: std::collections::HashMap<i64, (Value, i64)> = std::collections::HashMap::new();
+
+    let mut parse_node = |m: &Value| {
+        if let Some(id) = m.get("id").and_then(|v| v.as_i64()) {
+            let m_type = m.get("type").and_then(|t| t.as_str()).unwrap_or("ANIME");
+            if m_type == "ANIME" && !map.contains_key(&id) {
+                let sd = m.get("startDate");
+                let y = sd.and_then(|s| s.get("year")).and_then(|v| v.as_i64()).unwrap_or(9999);
+                let mo = sd.and_then(|s| s.get("month")).and_then(|v| v.as_i64()).unwrap_or(1);
+                let d = sd.and_then(|s| s.get("day")).and_then(|v| v.as_i64()).unwrap_or(1);
+                let date_val = y * 10000 + mo * 100 + d;
+                map.insert(id, (m.clone(), date_val));
+            }
+        }
+    };
+
+    parse_node(root);
+    if let Some(edges) = root.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
+        for edge in edges {
+            let rel = edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
+            if matches!(rel, "PREQUEL" | "SEQUEL" | "PARENT" | "SIDE_STORY" | "ALTERNATIVE" | "SPIN_OFF") {
+                if let Some(node) = edge.get("node") {
+                    parse_node(node);
+                    if let Some(sub_edges) = node.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
+                        for sub_edge in sub_edges {
+                            let sub_rel = sub_edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
+                            if matches!(sub_rel, "PREQUEL" | "SEQUEL" | "PARENT" | "SIDE_STORY" | "ALTERNATIVE") {
+                                if let Some(sub_node) = sub_edge.get("node") {
+                                    parse_node(sub_node);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut list: Vec<(Value, i64)> = map.into_values().collect();
+    list.sort_by_key(|(_, d)| *d);
+
+    let mut season_counter = 1;
+    let mut editions = Vec::with_capacity(list.len());
+
+    for (node, date_val) in list {
+        let id = node.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
+        let id_mal = node.get("idMal").and_then(|v| v.as_i64());
+        let format = node.get("format").and_then(|f| f.as_str()).unwrap_or("TV").to_string();
+        let status = node.get("status").and_then(|s| s.as_str()).map(|s| s.to_string());
+        let episodes = node.get("episodes").and_then(|e| e.as_i64()).map(|e| e as i32);
+        let season_year = node.get("seasonYear").and_then(|y| y.as_i64()).map(|y| y as i32);
+        let score = node.get("averageScore").and_then(|s| s.as_f64()).map(|s| s / 10.0);
+
+        let title_obj = node.get("title");
+        let romaji = title_obj.and_then(|t| t.get("romaji")).and_then(|r| r.as_str()).unwrap_or("Anime");
+        let english = title_obj.and_then(|t| t.get("english")).and_then(|e| e.as_str()).map(|e| e.to_string());
+        let main_title = english.clone().unwrap_or_else(|| romaji.to_string());
+        let slug = format!("{}-{}", slugify(&main_title), id);
+
+        let poster = node.get("coverImage")
+            .and_then(|c| c.get("large").or_else(|| c.get("medium")))
+            .and_then(|u| u.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        let edition_label = match format.as_str() {
+            "TV" | "TV_SHORT" => {
+                let lbl = format!("S{}", season_counter);
+                season_counter += 1;
+                lbl
+            }
+            "MOVIE" => "Movie".to_string(),
+            "OVA" => "OVA".to_string(),
+            "ONA" => "ONA".to_string(),
+            _ => "Special".to_string(),
+        };
+
+        editions.push(AnimeEdition {
+            id,
+            id_mal,
+            slug,
+            title: main_title,
+            title_english: english,
+            format,
+            status,
+            season_year,
+            episodes,
+            poster,
+            score,
+            edition_label,
+            is_current: (id == target_id),
+            date_order: date_val,
+        });
+    }
+
+    Ok(editions)
+}

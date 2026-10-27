@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="titleC">
+  <title id="titleC">Miru logo - Concept C: The Twin Shards</title>
+  <!-- Left shard -->
+  <path fill="#090A0E" d="
+    M 44 204
+    L 44 84
+    C 44 62, 62 44, 84 44
+    L 116 44
+    L 116 148
+    L 76 204 Z
+  "/>
+  <!-- Right shard with play-facing dynamic -->
+  <path fill="#090A0E" d="
+    M 212 204
+    L 212 84
+    C 212 62, 194 44, 172 44
+    L 140 44
+    L 140 148
+    L 180 204 Z
+  "/>
+  <!-- Center play core -->
+  <path fill="#090A0E" d="
+    M 112 108
+    L 112 168
+    L 164 138 Z
+  "/>
+</svg>
