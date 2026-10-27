@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -65,6 +66,7 @@ import id.tatap.app.ui.components.ChangelogModalBottomSheet
 import id.tatap.app.ui.components.UpdateAvailableBottomSheet
 import id.tatap.app.ui.theme.BorderSubtle
 import id.tatap.app.ui.theme.CrunchyrollOrange
+import id.tatap.app.ui.components.ReportIssueBottomSheet
 import id.tatap.app.ui.theme.DarkOled
 import id.tatap.app.ui.theme.SurfaceDark
 import id.tatap.app.ui.theme.SurfaceVariantDark
@@ -85,6 +87,7 @@ fun SettingsScreen(
     var hasChecked by remember { mutableStateOf(false) }
 
     var showUpdateSheet by remember { mutableStateOf(false) }
+    var showReportSheet by remember { mutableStateOf(false) }
     var showChangelogSheet by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
 
@@ -533,6 +536,70 @@ fun SettingsScreen(
                 }
             }
         }
+        // 5. Bantuan & Laporkan Masalah
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                ) {
+                    Text(
+                        text = "BANTUAN & LAPORAN BUG",
+                        color = CrunchyrollOrange,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showReportSheet = true }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(CrunchyrollOrange.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                tint = CrunchyrollOrange,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Laporkan Masalah / Bug",
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Kirim laporan error atau episode rusak lengkap dengan data diagnostik",
+                                color = TextMuted,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
 
         // 5. Tentang Tatap
         item {
@@ -605,6 +672,11 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+    if (showReportSheet) {
+        ReportIssueBottomSheet(
+            onDismissRequest = { showReportSheet = false }
+        )
     }
 }
 

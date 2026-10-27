@@ -27,11 +27,45 @@ data class AnimeCard(
         }
 }
 
+data class ScheduleItem(
+    val id: Long,
+    val episode: Int,
+    val airingAt: Long,
+    val anime: AnimeCard
+) {
+    val formattedTime: String
+        get() {
+            return try {
+                val date = java.util.Date(airingAt * 1000)
+                val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                sdf.format(date) + " WIB"
+            } catch (e: Exception) {
+                "Ep $episode"
+            }
+        }
+}
+
+data class DaySchedule(
+    val dayName: String,
+    val dayKey: String,
+    val dateFormatted: String,
+    val isToday: Boolean,
+    val items: List<ScheduleItem> = emptyList()
+)
+
+data class WeeklySchedule(
+    val days: List<DaySchedule> = emptyList()
+)
+
 data class HomeCatalog(
     val hero: List<AnimeCard> = emptyList(),
     val continueWatching: List<WatchHistoryItem> = emptyList(),
+    val airingToday: List<ScheduleItem> = emptyList(),
     val topAiring: List<AnimeCard> = emptyList(),
-    val seasonal: List<AnimeCard> = emptyList()
+    val seasonal: List<AnimeCard> = emptyList(),
+    val topRated: List<AnimeCard> = emptyList(),
+    val upcoming: List<AnimeCard> = emptyList(),
+    val allTimePopular: List<AnimeCard> = emptyList()
 )
 
 data class WatchHistoryItem(

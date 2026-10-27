@@ -12,8 +12,8 @@ android {
         applicationId = "id.tatap.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.1.5"
+        versionCode = 6
+        versionName = "0.1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -24,10 +24,20 @@ android {
             abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
         }
     }
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = "tatapandroidrelease"
+            keyAlias = "tatap"
+            keyPassword = "tatapandroidrelease"
+        }
+    }
+
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

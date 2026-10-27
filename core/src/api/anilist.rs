@@ -34,12 +34,38 @@ pub struct AnimeCard {
     pub synopsis: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScheduleItem {
+    pub id: i64,
+    pub episode: i32,
+    pub airing_at: i64,
+    pub anime: AnimeCard,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaySchedule {
+    pub day_name: String,
+    pub day_key: String,
+    pub date_formatted: String,
+    pub is_today: bool,
+    pub items: Vec<ScheduleItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeeklyScheduleResponse {
+    pub days: Vec<DaySchedule>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HomeCatalogResponse {
     pub hero: Vec<AnimeCard>,
     pub continue_watching: Vec<Value>,
+    pub airing_today: Vec<ScheduleItem>,
     pub top_airing: Vec<AnimeCard>,
     pub seasonal: Vec<AnimeCard>,
+    pub top_rated: Vec<AnimeCard>,
+    pub upcoming: Vec<AnimeCard>,
+    pub all_time_popular: Vec<AnimeCard>,
 }
 
 pub fn clean_html_synopsis(raw: &str) -> String {
@@ -116,6 +142,20 @@ fn parse_media_item(m: &Value) -> Option<AnimeCard> {
         synopsis,
     })
 }
+fn parse_schedule_item(item: &Value) -> Option<ScheduleItem> {
+    let id = item.get("id")?.as_i64()?;
+    let episode = item.get("episode")?.as_i64()? as i32;
+    let airing_at = item.get("airingAt")?.as_i64()?;
+    let media = item.get("media")?;
+    let anime = parse_media_item(media)?;
+    Some(ScheduleItem {
+        id,
+        episode,
+        airing_at,
+        anime,
+    })
+}
+
 
 pub async fn query_anilist(query: &str, variables: Value) -> Result<Value> {
     let payload = json!({
@@ -159,7 +199,7 @@ pub async fn get_mal_id_by_anilist_id(anilist_id: i64) -> Result<Option<i64>> {
 }
 
 const HOME_QUERY: &str = r#"
-query HomeCatalog($season: MediaSeason, $year: Int) {
+query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd: Int) {
   trending: Page(page: 1, perPage: 10) {
     media(sort: TRENDING_DESC, type: ANIME) {
       id idMal status episodes averageScore seasonYear genres bannerImage
@@ -187,20 +227,62 @@ query HomeCatalog($season: MediaSeason, $year: Int) {
       nextAiringEpisode { episode }
     }
   }
+  airingToday: Page(page: 1, perPage: 20) {
+    airingSchedules(airingAt_greater: $todayStart, airingAt_lesser: $todayEnd, sort: TIME) {
+      id episode airingAt
+      media {
+        id idMal status episodes averageScore seasonYear genres bannerImage
+        title { romaji english }
+        coverImage { large }
+        description(asHtml: false)
+        nextAiringEpisode { episode }
+      }
+    }
+  }
+  topRated: Page(page: 1, perPage: 12) {
+    media(sort: SCORE_DESC, type: ANIME, status_in: [RELEASING, FINISHED]) {
+      id idMal status episodes averageScore seasonYear genres bannerImage
+      title { romaji english }
+      coverImage { large }
+      description(asHtml: false)
+      nextAiringEpisode { episode }
+    }
+  }
+  upcoming: Page(page: 1, perPage: 12) {
+    media(status: NOT_YET_RELEASED, sort: POPULARITY_DESC, type: ANIME) {
+      id idMal status episodes averageScore seasonYear genres bannerImage
+      title { romaji english }
+      coverImage { large }
+      description(asHtml: false)
+      nextAiringEpisode { episode }
+    }
+  }
+  allTime: Page(page: 1, perPage: 12) {
+    media(sort: POPULARITY_DESC, type: ANIME) {
+      id idMal status episodes averageScore seasonYear genres bannerImage
+      title { romaji english }
+      coverImage { large }
+      description(asHtml: false)
+      nextAiringEpisode { episode }
+    }
+  }
 }
 "#;
 
 pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
-    let cached = db.get_search_cache("home_catalog_v1", 3600)?;
+    let cached = db.get_search_cache("home_catalog_v2", 3600)?;
     if let Some(val) = cached {
         if let Ok(res) = serde_json::from_value::<HomeCatalogResponse>(val) {
             return Ok(res);
         }
     }
 
-    // Determine current season
     use chrono::{Datelike, Utc};
     let now = Utc::now();
+    let today_date = now.date_naive();
+    let today_start = today_date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+    let today_end = today_start + 86400;
+
     let month = now.month();
     let year = now.year();
     let season = match month {
@@ -212,7 +294,9 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
 
     let variables = json!({
         "season": season,
-        "year": year
+        "year": year,
+        "todayStart": today_start,
+        "todayEnd": today_end
     });
 
     let res = query_anilist(HOME_QUERY, variables).await?;
@@ -239,18 +323,173 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
         .unwrap_or_default();
     let seasonal = seasonal_arr.iter().filter_map(parse_media_item).collect();
 
+    let airing_today_arr = data.get("airingToday")
+        .and_then(|a| a.get("airingSchedules"))
+        .and_then(|m| m.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let airing_today = airing_today_arr.iter().filter_map(parse_schedule_item).collect();
+
+    let top_rated_arr = data.get("topRated")
+        .and_then(|tr| tr.get("media"))
+        .and_then(|m| m.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let top_rated = top_rated_arr.iter().filter_map(parse_media_item).collect();
+
+    let upcoming_arr = data.get("upcoming")
+        .and_then(|u| u.get("media"))
+        .and_then(|m| m.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let upcoming = upcoming_arr.iter().filter_map(parse_media_item).collect();
+
+    let all_time_arr = data.get("allTime")
+        .and_then(|at| at.get("media"))
+        .and_then(|m| m.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let all_time_popular = all_time_arr.iter().filter_map(parse_media_item).collect();
+
     let history = db.get_history(10).unwrap_or_default();
     let continue_watching = history.into_iter().map(|h| serde_json::to_value(h).unwrap_or(Value::Null)).collect();
 
     let response = HomeCatalogResponse {
         hero,
         continue_watching,
+        airing_today,
         top_airing,
         seasonal,
+        top_rated,
+        upcoming,
+        all_time_popular,
     };
 
     if let Ok(json_res) = serde_json::to_value(&response) {
-        let _ = db.set_search_cache("home_catalog_v1", &json_res);
+        let _ = db.set_search_cache("home_catalog_v2", &json_res);
+    }
+
+    Ok(response)
+}
+
+const WEEKLY_SCHEDULE_QUERY: &str = r#"
+query WeeklySchedule($weekStart: Int, $weekEnd: Int, $page: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
+    airingSchedules(airingAt_greater: $weekStart, airingAt_lesser: $weekEnd, sort: TIME) {
+      id episode airingAt
+      media {
+        id idMal status episodes averageScore seasonYear genres bannerImage
+        title { romaji english }
+        coverImage { large }
+        description(asHtml: false)
+        nextAiringEpisode { episode }
+      }
+    }
+  }
+}
+"#;
+
+pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
+    use chrono::{Datelike, Duration, Utc, Weekday};
+    let now = Utc::now();
+    let today_date = now.date_naive();
+    let cache_key = format!("weekly_schedule_{}", today_date.format("%Y_%W"));
+
+    if let Ok(Some(cached)) = db.get_search_cache(&cache_key, 3600) {
+        if let Ok(res) = serde_json::from_value::<WeeklyScheduleResponse>(cached) {
+            return Ok(res);
+        }
+    }
+
+    let days_from_monday = match today_date.weekday() {
+        Weekday::Mon => 0,
+        Weekday::Tue => 1,
+        Weekday::Wed => 2,
+        Weekday::Thu => 3,
+        Weekday::Fri => 4,
+        Weekday::Sat => 5,
+        Weekday::Sun => 6,
+    };
+    let week_start_date = today_date - Duration::days(days_from_monday);
+    let week_start = week_start_date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+    let week_end = week_start + 7 * 86400;
+
+    let mut all_schedules = Vec::new();
+    let mut page = 1;
+
+    loop {
+        let variables = json!({
+            "weekStart": week_start,
+            "weekEnd": week_end,
+            "page": page
+        });
+
+        let res = query_anilist(WEEKLY_SCHEDULE_QUERY, variables).await?;
+        let page_obj = res.get("data").and_then(|d| d.get("Page"));
+        if let Some(p) = page_obj {
+            if let Some(arr) = p.get("airingSchedules").and_then(|a| a.as_array()) {
+                for item in arr {
+                    if let Some(sched) = parse_schedule_item(item) {
+                        all_schedules.push(sched);
+                    }
+                }
+            }
+            let has_next = p.get("pageInfo").and_then(|pi| pi.get("hasNextPage")).and_then(|h| h.as_bool()).unwrap_or(false);
+            if !has_next || page >= 3 {
+                break;
+            }
+            page += 1;
+        } else {
+            break;
+        }
+    }
+
+    let day_configs = [
+        ("Senin", "monday", 0),
+        ("Selasa", "tuesday", 1),
+        ("Rabu", "wednesday", 2),
+        ("Kamis", "thursday", 3),
+        ("Jumat", "friday", 4),
+        ("Sabtu", "saturday", 5),
+        ("Minggu", "sunday", 6),
+    ];
+
+    let mut days = Vec::new();
+
+    for (day_name, day_key, day_offset) in day_configs {
+        let current_day_date = week_start_date + Duration::days(day_offset);
+        let day_start = current_day_date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+        let day_end = day_start + 86400;
+        let is_today = current_day_date == today_date;
+
+        let month_name = match current_day_date.month() {
+            1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
+            5 => "Mei", 6 => "Jun", 7 => "Jul", 8 => "Agt",
+            9 => "Sep", 10 => "Okt", 11 => "Nov", _ => "Des",
+        };
+        let date_formatted = format!("{} {}", current_day_date.day(), month_name);
+
+        let items: Vec<ScheduleItem> = all_schedules
+            .iter()
+            .filter(|s| s.airing_at >= day_start && s.airing_at < day_end)
+            .cloned()
+            .collect();
+
+        days.push(DaySchedule {
+            day_name: day_name.to_string(),
+            day_key: day_key.to_string(),
+            date_formatted,
+            is_today,
+            items,
+        });
+    }
+
+    let response = WeeklyScheduleResponse { days };
+    if let Ok(json_res) = serde_json::to_value(&response) {
+        let _ = db.set_search_cache(&cache_key, &json_res);
     }
 
     Ok(response)

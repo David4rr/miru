@@ -34,15 +34,23 @@ object ApiClient {
                 val data = json.getJSONObject("data")
 
                 val heroList = parseAnimeCards(data.optJSONArray("hero"))
+                val continueList = parseWatchHistory(data.optJSONArray("continue_watching"))
+                val airingToday = parseScheduleItems(data.optJSONArray("airing_today"))
                 val topAiring = parseAnimeCards(data.optJSONArray("top_airing"))
                 val seasonal = parseAnimeCards(data.optJSONArray("seasonal"))
-                val continueList = parseWatchHistory(data.optJSONArray("continue_watching"))
+                val topRated = parseAnimeCards(data.optJSONArray("top_rated"))
+                val upcoming = parseAnimeCards(data.optJSONArray("upcoming"))
+                val allTimePopular = parseAnimeCards(data.optJSONArray("all_time_popular"))
 
                 HomeCatalog(
                     hero = heroList,
                     continueWatching = continueList,
+                    airingToday = airingToday,
                     topAiring = topAiring,
-                    seasonal = seasonal
+                    seasonal = seasonal,
+                    topRated = topRated,
+                    upcoming = upcoming,
+                    allTimePopular = allTimePopular
                 )
             }
         }
@@ -259,6 +267,62 @@ object ApiClient {
 
             client.newCall(request).execute().close()
         }
+    }
+    suspend fun getWeeklySchedule(): Result<WeeklySchedule> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder()
+                .url("$BASE_URL/api/schedule")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: ${resp.message}")
+                val bodyStr = resp.body?.string().orEmpty()
+                val json = JSONObject(bodyStr)
+                val data = json.getJSONObject("data")
+                val daysArr = data.optJSONArray("days")
+                val daysList = mutableListOf<DaySchedule>()
+
+                if (daysArr != null) {
+                    for (i in 0 until daysArr.length()) {
+                        val dObj = daysArr.optJSONObject(i) ?: continue
+                        val itemsArr = dObj.optJSONArray("items")
+                        val items = parseScheduleItems(itemsArr)
+                        daysList.add(
+                            DaySchedule(
+                                dayName = dObj.optString("day_name"),
+                                dayKey = dObj.optString("day_key"),
+                                dateFormatted = dObj.optString("date_formatted"),
+                                isToday = dObj.optBoolean("is_today", false),
+                                items = items
+                            )
+                        )
+                    }
+                }
+
+                WeeklySchedule(days = daysList)
+            }
+        }
+    }
+
+    private fun parseScheduleItems(array: JSONArray?): List<ScheduleItem> {
+        if (array == null) return emptyList()
+        val list = mutableListOf<ScheduleItem>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val animeObj = obj.optJSONObject("anime") ?: continue
+            val animeCardList = parseAnimeCards(JSONArray().apply { put(animeObj) })
+            if (animeCardList.isEmpty()) continue
+            list.add(
+                ScheduleItem(
+                    id = obj.optLong("id"),
+                    episode = obj.optInt("episode"),
+                    airingAt = obj.optLong("airing_at"),
+                    anime = animeCardList[0]
+                )
+            )
+        }
+        return list
     }
 
     private fun parseAnimeCards(array: JSONArray?): List<AnimeCard> {

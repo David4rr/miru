@@ -41,7 +41,8 @@ fun AnimePosterCard(
     anime: AnimeCard,
     onClick: (AnimeCard) -> Unit,
     modifier: Modifier = Modifier,
-    rank: Int? = null
+    rank: Int? = null,
+    customBadge: String? = null
 ) {
     Column(
         modifier = modifier
@@ -133,7 +134,7 @@ fun AnimePosterCard(
                     .padding(horizontal = 5.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = anime.displayEpisodes,
+                    text = customBadge ?: anime.displayEpisodes,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

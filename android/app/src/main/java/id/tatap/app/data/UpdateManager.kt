@@ -218,6 +218,32 @@ object UpdateManager {
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
             AppRelease(
+                tagName = "v0.1.6",
+                versionName = "0.1.6",
+                title = "Tatap Android v0.1.6 (Release Build, Airing Schedule & Report Issue)",
+                body = """
+                    ### Tatap Android v0.1.6
+                    
+                    #### 🚀 Build Release Ringan & Mulus:
+                    - **Signed Release APK:** Beralih ke build release dengan sertifikat rilis terverifikasi, optimasi compiler penuh, dan penghapusan overhead debug, menghasilkan aplikasi yang jauh lebih ringan dan performa Jetpack Compose mencapai 60–120 FPS mulus.
+                    - **ProGuard & R8 Shield:** Proteksi JNI native bridge Rust (libtatap_core.so) dan model serialisasi untuk kestabilan jangka panjang.
+
+                    #### 📅 Kategori Katalog Baru & Jadwal Rilis Mingguan:
+                    - **Rilis Hari Ini (Airing Today):** Swimlane anime baru di Beranda yang menampilkan anime yang tayang hari ini lengkap dengan badge waktu tayang (WIB) dan nomor episode terbaru.
+                    - **Layar Jadwal Rilis Lengkap (Airing Schedule):** Tampilan jadwal simulcast mingguan dengan selektor hari (Senin - Minggu) dan deteksi otomatis hari ini.
+                    - **Kategori Ekstensi Beranda:** Ditambahkan kategori Paling Berperingkat Tinggi (Top Rated), Akan Datang Mendatang (Upcoming), dan Favorit Sepanjang Masa (All-Time Popular).
+
+                    #### 🐛 Sistem Laporkan Masalah (Report Issue):
+                    - **Laporkan Masalah / Bug di Pengaturan:** Formulir laporan dengan pengumpulan data diagnostik perangkat otomatis (versi OS, tipe HP, versi Tatap, status daemon core).
+                    - **Laporkan Episode Rusak di Player:** Tombol pelaporan langsung di layar error pemutar video yang otomatis menyertakan judul anime, episode, dan pesan error stream.
+                    - **Dukungan Kirim ke GitHub & Salin ke Clipboard:** Kemudahan mengirimkan issue terstruktur ke GitHub atau menyalin ringkasan diagnostik untuk dibagikan.
+                """.trimIndent(),
+                publishedAt = "2026-10-27",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.6/Tatap-v0.1.6-release.apk",
+                apkSize = 32000000L,
+                isNewer = false
+            ),
+            AppRelease(
                 tagName = "v0.1.5",
                 versionName = "0.1.5",
                 title = "Tatap Android v0.1.5 (Auto-Update & In-App Changelog)",

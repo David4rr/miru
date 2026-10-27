@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,12 +54,12 @@ import id.tatap.app.ui.theme.DarkBackground
 import id.tatap.app.ui.theme.TextMuted
 import id.tatap.app.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
-
 @Composable
 fun HomeScreen(
     onAnimeClick: (AnimeCard) -> Unit,
     onContinueWatchClick: (WatchHistoryItem) -> Unit,
     onSearchClick: () -> Unit,
+    onScheduleClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var catalog by remember { mutableStateOf<HomeCatalog?>(null) }
@@ -163,6 +164,13 @@ fun HomeScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.weight(1f))
+                            IconButton(onClick = onScheduleClick) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Jadwal Rilis",
+                                    tint = Color.White
+                                )
+                            }
                             IconButton(onClick = { loadData() }) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
@@ -208,6 +216,29 @@ fun HomeScreen(
                             }
                         }
                     }
+                    // 3. Rilis Hari Ini (Airing Today)
+                    if (cat.airingToday.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            SectionHeader(
+                                title = "Rilis Hari Ini",
+                                onSeeAllClick = onScheduleClick
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(cat.airingToday) { scheduleItem ->
+                                    AnimePosterCard(
+                                        anime = scheduleItem.anime,
+                                        onClick = onAnimeClick,
+                                        customBadge = "Ep ${scheduleItem.episode} • ${scheduleItem.formattedTime}"
+                                    )
+                                }
+                            }
+                        }
+                    }
+
 
                     // 3. Populer Musim Ini Swimlane
                     if (cat.seasonal.isNotEmpty()) {
@@ -242,6 +273,61 @@ fun HomeScreen(
                                         anime = anime,
                                         onClick = onAnimeClick,
                                         rank = index + 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (cat.topRated.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            SectionHeader(title = "Paling Berperingkat Tinggi")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(cat.topRated) { anime ->
+                                    AnimePosterCard(
+                                        anime = anime,
+                                        onClick = onAnimeClick
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 6. Akan Datang Mendatang (Upcoming)
+                    if (cat.upcoming.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            SectionHeader(title = "Akan Datang Mendatang")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(cat.upcoming) { anime ->
+                                    AnimePosterCard(
+                                        anime = anime,
+                                        onClick = onAnimeClick
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 7. Favorit Sepanjang Masa (All-Time Popular)
+                    if (cat.allTimePopular.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            SectionHeader(title = "Favorit Sepanjang Masa")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(cat.allTimePopular) { anime ->
+                                    AnimePosterCard(
+                                        anime = anime,
+                                        onClick = onAnimeClick
                                     )
                                 }
                             }

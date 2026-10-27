@@ -36,6 +36,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/ping", get(ping_handler))
         .route("/api/version", get(version_handler))
         .route("/api/home", get(home_handler))
+        .route("/api/schedule", get(schedule_handler))
         .route("/api/search", get(search_handler))
         .route("/api/stream/resolve", get(resolve_stream_handler))
         .route("/api/player/video", get(proxy::proxy_video_handler))
@@ -70,6 +71,16 @@ async fn home_handler(State(state): State<AppState>) -> Response {
         ).into_response(),
     }
 }
+async fn schedule_handler(State(state): State<AppState>) -> Response {
+    match api::anilist::fetch_schedule(&state.db).await {
+        Ok(schedule) => Json(json!({ "success": true, "data": schedule })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
 
 #[derive(Debug, Deserialize)]
 struct SearchParams {

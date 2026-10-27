@@ -39,6 +39,7 @@ import id.tatap.app.ui.screens.HomeScreen
 import id.tatap.app.ui.screens.LibraryScreen
 import id.tatap.app.ui.screens.PlayerScreen
 import id.tatap.app.ui.screens.SearchScreen
+import id.tatap.app.ui.screens.ScheduleScreen
 import id.tatap.app.ui.screens.SettingsScreen
 import id.tatap.app.ui.theme.CrunchyrollOrange
 import id.tatap.app.ui.theme.DarkOled
@@ -66,6 +67,7 @@ fun MainApp() {
 
     var availableUpdate by remember { mutableStateOf<AppRelease?>(null) }
     var showUpdateSheet by remember { mutableStateOf(false) }
+    var showScheduleScreen by remember { mutableStateOf(false) }
     var isUpdateBannerDismissed by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -100,6 +102,17 @@ fun MainApp() {
                 }
             )
         }
+        // 3. Weekly Airing Schedule Screen Mode
+        showScheduleScreen -> {
+            BackHandler {
+                showScheduleScreen = false
+            }
+            ScheduleScreen(
+                onAnimeClick = { selectedAnime = it },
+                onBackClick = { showScheduleScreen = false }
+            )
+        }
+
 
         // 3. Main Bottom Navigation Screens
         else -> {
@@ -171,7 +184,8 @@ fun MainApp() {
                                     item.episode
                                 )
                             },
-                            onSearchClick = { selectedTab = 1 }
+                            onSearchClick = { selectedTab = 1 },
+                            onScheduleClick = { showScheduleScreen = true }
                         )
                         1 -> SearchScreen(
                             onAnimeClick = { selectedAnime = it }

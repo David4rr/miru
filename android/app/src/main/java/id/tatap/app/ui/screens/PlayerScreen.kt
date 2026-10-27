@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Forward10
@@ -109,6 +110,7 @@ import id.tatap.app.data.ResolvedStream
 import id.tatap.app.data.WatchHistoryItem
 import id.tatap.app.data.WatchProgressItem
 import id.tatap.app.ui.components.OrangeButton
+import id.tatap.app.ui.components.ReportIssueBottomSheet
 import id.tatap.app.ui.theme.CrunchyOrange
 import id.tatap.app.ui.theme.DarkBackground
 import id.tatap.app.ui.theme.DarkSurface
@@ -151,6 +153,7 @@ fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSubtitleSheet by remember { mutableStateOf(false) }
     var showEpisodeSheet by remember { mutableStateOf(false) }
+    var showReportSheet by remember { mutableStateOf(false) }
     var selectedSubtitleIndex by remember { mutableStateOf(0) }
 
     // Double-tap seek visual feedback
@@ -633,11 +636,32 @@ fun PlayerScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(20.dp))
-                    OrangeButton(
-                        text = "Coba Lagi",
-                        icon = Icons.Default.Refresh,
-                        onClick = { loadStream() }
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OrangeButton(
+                            text = "Coba Lagi",
+                            icon = Icons.Default.Refresh,
+                            onClick = { loadStream() }
+                        )
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { showReportSheet = true },
+                            modifier = Modifier.height(44.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Laporkan Masalah", fontSize = 13.sp)
+                        }
+                    }
                 }
             }
         }
@@ -1156,6 +1180,15 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+    if (showReportSheet) {
+        ReportIssueBottomSheet(
+            onDismissRequest = { showReportSheet = false },
+            initialCategory = "Video Rusak / Buffer",
+            animeTitle = anime.title,
+            episodeNumber = currentEpisode,
+            errorMessage = streamError
+        )
     }
 }
 
