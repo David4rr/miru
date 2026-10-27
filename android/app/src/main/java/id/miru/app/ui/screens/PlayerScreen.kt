@@ -58,9 +58,7 @@ fun PlayerScreen(
     val totalEpisodes = if (anime.isNotYetReleased) 0 else (anime.episodes ?: 12)
 
     fun ping() { lastInteraction = System.currentTimeMillis(); areControlsVisible = true }
-    fun saveProgress(explicit: Int? = null) {
-        saveWatchProgressAsync(anime.slug, currentEpisode, currentPosition, duration, explicit)
-    }
+    fun saveProgress(explicit: Int? = null) = saveWatchProgressAsync(anime.slug, currentEpisode, currentPosition, duration, explicit)
 
     val exoPlayer = rememberExoPlayerWithLifecycle(
         context = context, activity = context as? Activity, window = (context as? Activity)?.window,
@@ -95,30 +93,29 @@ fun PlayerScreen(
     LaunchedEffect(exoPlayer, isAutoSkipEnabled, resolvedStream, currentEpisode) {
         var tick = 0
         while (true) {
-            currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
-            if (duration <= 0 && exoPlayer.duration > 0) duration = exoPlayer.duration
-            val intro = resolvedStream?.intro
-            val outro = resolvedStream?.outro
-            val curSec = currentPosition / 1000.0
-            if (intro != null && intro.end > intro.start && curSec < (intro.start - 5.0)) hasSkippedIntro = false
-            if (outro != null && outro.end > outro.start && curSec < (outro.start - 5.0)) hasSkippedOutro = false
-            if (isAutoSkipEnabled && isPlaying && !hasSkippedIntro && intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 0.5)) {
-                exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
-                hasSkippedIntro = true
-                autoSkipNotice = "⏩ Lewati Pembuka (+${(intro.end - intro.start).toInt()}d)"
-            }
-            if (isAutoSkipEnabled && isPlaying && !hasSkippedOutro && outro != null && outro.end > outro.start && curSec >= outro.start && curSec < (outro.end - 0.5)) {
-                hasSkippedOutro = true
-                if (currentEpisode < totalEpisodes) {
-                    saveProgress(100)
-                    autoSkipNotice = "⏩ Melompat ke Episode Berikutnya..."
-                    currentEpisode += 1
-                } else {
-                    exoPlayer.seekTo(((outro.end + 0.5) * 1000).toLong())
-                    autoSkipNotice = "⏩ Lewati Penutup"
+            try {
+                currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
+                if (duration <= 0 && exoPlayer.duration > 0) duration = exoPlayer.duration
+                val intro = resolvedStream?.intro
+                val outro = resolvedStream?.outro
+                val curSec = currentPosition / 1000.0
+                if (intro != null && intro.end > intro.start && curSec < (intro.start - 5.0)) hasSkippedIntro = false
+                if (outro != null && outro.end > outro.start && curSec < (outro.start - 5.0)) hasSkippedOutro = false
+                if (isAutoSkipEnabled && isPlaying && !hasSkippedIntro && intro != null && intro.end > intro.start && curSec >= intro.start && curSec < (intro.end - 0.5)) {
+                    exoPlayer.seekTo(((intro.end + 0.5) * 1000).toLong())
+                    hasSkippedIntro = true; autoSkipNotice = "⏩ Lewati Pembuka (+${(intro.end - intro.start).toInt()}d)"
                 }
-            }
-            if (++tick % 10 == 0 && isPlaying) saveProgress()
+                if (isAutoSkipEnabled && isPlaying && !hasSkippedOutro && outro != null && outro.end > outro.start && curSec >= outro.start && curSec < (outro.end - 0.5)) {
+                    hasSkippedOutro = true
+                    if (currentEpisode < totalEpisodes) {
+                        saveProgress(100); autoSkipNotice = "⏩ Melompat ke Episode Berikutnya..."; currentEpisode += 1
+                    } else {
+                        exoPlayer.seekTo(((outro.end + 0.5) * 1000).toLong()); autoSkipNotice = "⏩ Lewati Penutup"
+                    }
+                }
+                if (++tick % 10 == 0 && isPlaying) saveProgress()
+            } catch (_: Exception) { break }
+            delay(400)
         }
     }
 
@@ -144,17 +141,17 @@ fun PlayerScreen(
         val outro = resolvedStream?.outro
         val hasOp = intro != null && intro.end > intro.start
         val hasEd = outro != null && outro.end > outro.start
-        val showIntroBtn = if (hasOp) curSec >= intro!!.start && curSec < intro.end else curSec in 4.0..95.0 && duration > 120_000L
-        val showOutroBtn = if (hasEd) curSec >= outro!!.start && curSec < outro.end else duration > 180_000L && curSec >= ((duration / 1000.0) - 85.0)
+        val showIntroBtn = if (hasOp && intro != null) curSec >= intro.start && curSec < intro.end else curSec in 4.0..95.0 && duration > 120_000L
+        val showOutroBtn = if (hasEd && outro != null) curSec >= outro.start && curSec < outro.end else duration > 180_000L && curSec >= ((duration / 1000.0) - 85.0)
 
         val onSkipIntro = {
-            val target = if (hasOp) ((intro!!.end + 0.5) * 1000).toLong() else (currentPosition + 85_000L).coerceAtMost(duration)
+            val target = if (hasOp && intro != null) ((intro.end + 0.5) * 1000).toLong() else (currentPosition + 85_000L).coerceAtMost(duration)
             exoPlayer.seekTo(target); hasSkippedIntro = true; ping()
         }
         val onSkipOutro = {
             hasSkippedOutro = true
             if (currentEpisode < totalEpisodes) { saveProgress(100); currentEpisode += 1 }
-            else { exoPlayer.seekTo(if (hasEd) ((outro!!.end + 0.5) * 1000).toLong() else duration) }
+            else { exoPlayer.seekTo(if (hasEd && outro != null) ((outro.end + 0.5) * 1000).toLong() else duration) }
             ping()
         }
         PlayerSkipOverlay(

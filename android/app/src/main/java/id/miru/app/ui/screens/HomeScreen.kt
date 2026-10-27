@@ -130,12 +130,14 @@ fun HomeScreen(
                             HomeTopHeader(onScheduleClick = onScheduleClick)
                         }
 
-                        homeCatalogSwimlanes(
-                            catalog = catalog!!,
-                            onAnimeClick = onAnimeClick,
-                            onContinueWatchClick = onContinueWatchClick,
-                            onScheduleClick = onScheduleClick
-                        )
+                        catalog?.let { c ->
+                            homeCatalogSwimlanes(
+                                catalog = c,
+                                onAnimeClick = onAnimeClick,
+                                onContinueWatchClick = onContinueWatchClick,
+                                onScheduleClick = onScheduleClick
+                            )
+                        }
                     }
                 }
             }

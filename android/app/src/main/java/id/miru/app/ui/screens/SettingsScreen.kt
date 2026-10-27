@@ -142,8 +142,10 @@ fun SettingsScreen(
         )
     }
 
-    if (showUpdateSheet && updateCheckResult != null) {
-        UpdateAvailableBottomSheet(release = updateCheckResult!!, onDismissRequest = { showUpdateSheet = false })
+    if (showUpdateSheet) {
+        updateCheckResult?.let { rel ->
+            UpdateAvailableBottomSheet(release = rel, onDismissRequest = { showUpdateSheet = false })
+        }
     }
 
     if (showChangelogSheet) {

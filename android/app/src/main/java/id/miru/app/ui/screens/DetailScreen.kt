@@ -76,7 +76,7 @@ fun DetailScreen(
     val currentProgress = if (isLastEpFinished) 0 else lastProgress
 
     val rawSynopsis = currentAnime.cleanSynopsis ?: "Belum ada sinopsis resmi untuk anime ini."
-    val currentSynopsis = if (showOriginalSynopsis || translatedSynopsis == null) rawSynopsis else translatedSynopsis!!
+    val currentSynopsis = if (showOriginalSynopsis) rawSynopsis else (translatedSynopsis ?: rawSynopsis)
 
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
         LazyColumn(

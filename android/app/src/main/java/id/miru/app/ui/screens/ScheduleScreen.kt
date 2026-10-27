@@ -124,7 +124,7 @@ fun ScheduleScreen(
             }
 
             schedule != null -> {
-                val currentDays = schedule!!.days
+                val currentDays = schedule?.days ?: emptyList()
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

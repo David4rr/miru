@@ -137,11 +137,10 @@ fun MainApp() {
                         )
                     }
                 ) { innerPadding ->
-                    if (showUpdateSheet && availableUpdate != null) {
-                        UpdateAvailableBottomSheet(
-                            release = availableUpdate!!,
-                            onDismissRequest = { showUpdateSheet = false }
-                        )
+                    if (showUpdateSheet) {
+                        availableUpdate?.let { rel ->
+                            UpdateAvailableBottomSheet(release = rel, onDismissRequest = { showUpdateSheet = false })
+                        }
                     }
                     Column(
                         modifier = Modifier
@@ -149,12 +148,10 @@ fun MainApp() {
                             .background(DarkOled)
                             .padding(innerPadding)
                     ) {
-                        if (availableUpdate != null && !isUpdateBannerDismissed) {
-                            UpdateBanner(
-                                release = availableUpdate!!,
-                                onViewUpdateClick = { showUpdateSheet = true },
-                                onDismissClick = { isUpdateBannerDismissed = true }
-                            )
+                        if (!isUpdateBannerDismissed) {
+                            availableUpdate?.let { rel ->
+                                UpdateBanner(release = rel, onViewUpdateClick = { showUpdateSheet = true }, onDismissClick = { isUpdateBannerDismissed = true })
+                            }
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             AnimatedContent(

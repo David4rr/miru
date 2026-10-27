@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.5"
+        "0.2.6"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,23 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.6",
+                versionName = "0.2.6",
+                title = "Miru Android v0.2.6 (Fix Continue Watching Freeze & Complete Force-Unwrap Eradication)",
+                body = """
+                    ### Miru Android v0.2.6
+
+                    #### 🐛 Perbaikan Menyeluruh & Kestabilan (Stability & Hotfix):
+                    - **Mengatasi Freeze & Crash Saat Tekan Lanjutkan Menonton (Continue Watching):** Memperbaiki loop pemantauan posisi video di `PlayerScreen` yang kekurangan jeda (`delay`), mencegah starvation dan pembekuan Main Thread UI saat masuk ke pemutar dari beranda.
+                    - **Pemusnahan Total Force-Unwrap (Zero Null Pointers):** Menghapus seluruh operator `!!` di seluruh codebase (`MainActivity`, `PlayerScreen`, `DetailScreen`, `HomeScreen`, `ScheduleScreen`, `SettingsScreen`) dan menggantikannya dengan safe call pattern (`?.let`, `?:`).
+                    - **Penanganan Error Pemutar Lebih Tangguh:** Blok `try-catch` terisolasi pada background poller pemutar untuk menjamin graceful exit saat ExoPlayer dilepaskan.
+                """.trimIndent(),
+                publishedAt = "2026-10-27",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.6/Miru-v0.2.6-release.apk",
+                apkSize = 22600000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.5",
                 versionName = "0.2.5",
