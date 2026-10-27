@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.2"
+        "0.2.4"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,37 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.4",
+                versionName = "0.2.4",
+                title = "Miru Android v0.2.4 (The Chrono Eye Brand Identity, Animated Splash & Player Stability)",
+                body = """
+                    ### Miru Android v0.2.4
+
+                    #### 👁️ Identitas Brand Resmi ("The Chrono Eye"):
+                    - **Master Logo Suite & Desain Vektor Murni:** Peluncuran logo resmi Miru berakar pada konsep "The Chrono Eye" (lensa anime & portal waktu dinamis) dengan geometri presisi dan sudut harmonis.
+                    - **Ikon Peluncur Adaptif Android:** Integrasi ikon aplikasi baru untuk seluruh bucket kerapatan (`mipmap-mdpi` hingga `xxxhdpi`) serta XML adaptive icon modern di Android 8.0+.
+                    - **Kit Distribusi Lengkap:** Asset master SVG, high-res PNG, favicon web/PWA, dan panduan identitas visual terstandarisasi.
+
+                    #### 🚀 Layar Pembuka Dingin & Animasi (Splash Screen):
+                    - **Native Window Cold-Start Splash:** Menerapkan tema startup `Theme.Miru.Splash` dengan latar OLED `#090A0E` dan logo vektor, mengeliminasi kedipan putih saat aplikasi dibuka dingin.
+                    - **Compose Animated Splash:** Transisi animasi masuk halus dengan efek skala pegas (spring scale entrance) dan aura pendaran oranye sebelum masuk ke beranda.
+
+                    #### 🛡️ Stabilitas Pemutar & Rotasi Layar (Player Stability):
+                    - **Pencegahan Kebocoran Audio di Latar Belakang:** Mengikat ExoPlayer ke `LifecycleEventObserver` agar otomatis menjeda pemutaran dan menyinkronkan progres tonton saat pengguna menekan tombol Home atau berpindah aplikasi.
+                    - **Pencegahan Kunci Rotasi Layar (Landscape Lock Fix):** Menyetel ulang orientasi layar dan status bar secara deterministik ke mode bebas (`SCREEN_ORIENTATION_UNSPECIFIED`) setiap kali meninggalkan pemutar video.
+                    - **Retensi Sesi Pemutar (SingleTask):** Mengonfigurasi `launchMode="singleTask"` pada Activity utama agar sesi tonton tidak ter-reset saat kembali dari launcher.
+
+                    #### ⚡ Optimasi 120Hz & Fitur Lanjutan:
+                    - **Kunci Refresh Rate Tinggi:** Mengunci tampilan ke refresh rate tertinggi perangkat (90Hz / 120Hz / 144Hz).
+                    - **Navigasi Bawah OLED:** Dok navigasi hitam pekat dengan indikator pendar oranye dan pantulan skala ikon responsif.
+                    - **Smart Skip & Timeline Edisi Anime:** Dukungan lewati intro/outro yang akurat serta daftar urutan musim waralaba (S1-SN).
+                """.trimIndent(),
+                publishedAt = "2026-10-27",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.4/Miru-v0.2.4-release.apk",
+                apkSize = 23700000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.3",
                 versionName = "0.2.3",
