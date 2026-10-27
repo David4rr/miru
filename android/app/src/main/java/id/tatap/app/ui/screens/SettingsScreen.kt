@@ -75,6 +75,7 @@ import id.tatap.app.ui.theme.TextPrimary
 import id.tatap.app.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier
