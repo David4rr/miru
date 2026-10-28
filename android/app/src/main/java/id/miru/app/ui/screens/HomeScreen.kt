@@ -60,13 +60,19 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val scrollOffset by remember {
+    val parallaxOffset by remember {
         derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 1000f
-            else listState.firstVisibleItemScrollOffset.toFloat()
+            val heroItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == 1 }
+            if (heroItem != null) {
+                val scrolledOff = (-heroItem.offset).coerceAtLeast(0)
+                (scrolledOff * 0.35f).coerceAtMost(100f)
+            } else if (listState.firstVisibleItemIndex > 1) {
+                100f
+            } else {
+                0f
+            }
         }
     }
-    val parallaxOffset = (scrollOffset * 0.45f).coerceAtMost(160f)
 
     val recommendation = remember(catalog, history) {
         catalog?.let { RecommendationEngine.generateRecommendations(it, history) }

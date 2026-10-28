@@ -20,9 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.miru.app.R
+import id.miru.app.ui.theme.CrunchyOrange
 
 @Composable
 fun HomeTopHeader(
@@ -43,13 +46,24 @@ fun HomeTopHeader(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "MIRU",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Black,
-            color = Color.White,
-            letterSpacing = 2.sp
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_miru_logo),
+                contentDescription = "Miru Logo",
+                tint = CrunchyOrange,
+                modifier = Modifier.size(24.dp)
+            )
+            Text(
+                text = "MIRU",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                letterSpacing = 2.sp
+            )
+        }
         Spacer(modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier

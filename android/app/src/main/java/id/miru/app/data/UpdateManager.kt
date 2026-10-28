@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.11"
+        "0.2.12"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,26 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.12",
+                versionName = "0.2.12",
+                title = "Miru Android v0.2.12 (Japanese Kanji Identity & Ultra-Smooth Parallax Fix)",
+                body = """
+                    ### Miru Android v0.2.12
+
+                    #### 🇯🇵 Identitas Resmi Logo Miru (Japanese Kanji 見):
+                    - **Pembaruan Menyeluruh Ikon Aplikasi:** Menggantikan ikon lama secara tuntas pada seluruh density mipmap (`mdpi` hingga `xxxhdpi`), ikon adaptif Android (`ic_launcher_foreground`), serta vektor `ic_miru_logo`.
+                    - **Integrasi Logo di Header Utama:** Menampilkan mark logo resmi karakter Jepang **見** (*miru*) berpalet Crunchyroll Orange (`#FF6A00`) di samping tipografi MIRU pada `HomeTopHeader` dan animasi splash screen pembuka.
+
+                    #### 🎬 Perbaikan Total Animasi Parallax HomeScreen:
+                    - **Pelacakan Offset Berkelanjutan (Zero Glitch):** Menghapus lompatan nilai offset drastis saat header menggulir keluar layar; kini translasi parallax dihitung secara kontinu dari posisi piksel banner hero (`-heroItem.offset`), menjamin pergerakan 120 FPS tanpa patah-patah.
+                    - **Proteksi Bleed Skala (1.15x):** Menambahkan skala 1.15x pada gambar poster/banner di `HeroBannerItem` dan `DetailHeroHeader` agar pergerakan translasi tidak pernah meninggalkan celah kosong hitam di bagian atas kontainer.
+                """.trimIndent(),
+                publishedAt = "2026-10-29",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.12/Miru-v0.2.12-release.apk",
+                apkSize = 22700000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.11",
                 versionName = "0.2.11",

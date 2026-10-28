@@ -67,7 +67,11 @@ fun HeroBannerItem(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = parallaxOffset }
+                .graphicsLayer {
+                    scaleX = 1.15f
+                    scaleY = 1.15f
+                    translationY = parallaxOffset * 0.5f
+                }
         )
 
         Box(
