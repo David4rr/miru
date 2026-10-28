@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.HomeCatalog
+import id.miru.app.data.RecommendationEngine.RecommendationResult
 import id.miru.app.data.WatchHistoryItem
 import id.miru.app.ui.components.AnimePosterCard
 import id.miru.app.ui.components.ContinueWatchingCard
@@ -22,14 +23,17 @@ fun LazyListScope.homeCatalogSwimlanes(
     catalog: HomeCatalog,
     onAnimeClick: (AnimeCard) -> Unit,
     onContinueWatchClick: (WatchHistoryItem) -> Unit,
-    onScheduleClick: () -> Unit
+    onScheduleClick: () -> Unit,
+    parallaxOffset: Float = 0f,
+    recommendation: RecommendationResult? = null
 ) {
     if (catalog.hero.isNotEmpty()) {
         item {
             HeroBannerCarousel(
                 items = catalog.hero,
                 onItemClick = onAnimeClick,
-                onWatchClick = onAnimeClick
+                onWatchClick = onAnimeClick,
+                parallaxOffset = parallaxOffset
             )
         }
     }
@@ -44,6 +48,25 @@ fun LazyListScope.homeCatalogSwimlanes(
             ) {
                 items(catalog.continueWatching) { item ->
                     ContinueWatchingCard(item = item, onClick = onContinueWatchClick)
+                }
+            }
+        }
+    }
+
+    if (recommendation != null && recommendation.items.isNotEmpty()) {
+        item {
+            Spacer(modifier = Modifier.height(20.dp))
+            SectionHeader(
+                title = recommendation.title,
+                subtitle = recommendation.subtitle,
+                badge = recommendation.badge
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(recommendation.items) { anime ->
+                    AnimePosterCard(anime = anime, onClick = onAnimeClick)
                 }
             }
         }

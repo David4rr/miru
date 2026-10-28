@@ -5,12 +5,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,8 +34,6 @@ import id.miru.app.ui.theme.TextPrimary
 @Composable
 fun DetailHeroHeader(
     anime: AnimeCard,
-    isBookmarked: Boolean,
-    onToggleBookmark: () -> Unit,
     resumeEpisode: Int,
     isUpcoming: Boolean,
     onPlayClick: (Int) -> Unit,
@@ -67,27 +62,13 @@ fun DetailHeroHeader(
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = anime.title, fontSize = 22.sp, fontWeight = FontWeight.Black, color = TextPrimary, lineHeight = 28.sp)
-                anime.titleEnglish?.let { eng ->
-                    if (eng != anime.title) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = eng, fontSize = 13.sp, color = TextMuted)
-                    }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(text = anime.title, fontSize = 22.sp, fontWeight = FontWeight.Black, color = TextPrimary, lineHeight = 28.sp)
+            anime.titleEnglish?.let { eng ->
+                if (eng != anime.title) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = eng, fontSize = 13.sp, color = TextMuted)
                 }
-            }
-            IconButton(onClick = onToggleBookmark) {
-                Icon(
-                    imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                    contentDescription = "Simpan",
-                    tint = if (isBookmarked) CrunchyOrange else Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
             }
         }
 

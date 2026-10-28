@@ -86,6 +86,25 @@ fun DetailScreen(
     }
     val parallaxOffset = (scrollOffset * 0.45f).coerceAtMost(160f)
 
+    val toggleBookmark = {
+        val willBookmark = !isBookmarked
+        isBookmarked = willBookmark
+        scope.launch {
+            if (willBookmark) {
+                ApiClient.addBookmark(
+                    BookmarkItem(
+                        slug = currentAnime.slug,
+                        title = currentAnime.title,
+                        poster = currentAnime.poster,
+                        type = currentAnime.status ?: "ANIME"
+                    )
+                )
+            } else {
+                ApiClient.removeBookmark(currentAnime.slug)
+            }
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
         LazyColumn(
             state = listState,
@@ -95,15 +114,6 @@ fun DetailScreen(
             item {
                 DetailHeroHeader(
                     anime = currentAnime,
-                    isBookmarked = isBookmarked,
-                    onToggleBookmark = {
-                        val willBookmark = !isBookmarked
-                        isBookmarked = willBookmark
-                        scope.launch {
-                            if (willBookmark) ApiClient.addBookmark(BookmarkItem(slug = currentAnime.slug, title = currentAnime.title, poster = currentAnime.poster, type = currentAnime.status ?: "ANIME"))
-                            else ApiClient.removeBookmark(currentAnime.slug)
-                        }
-                    },
                     resumeEpisode = resumeEpisode,
                     isUpcoming = currentAnime.isNotYetReleased,
                     onPlayClick = { ep -> onPlayEpisodeClick(currentAnime, ep) },
@@ -164,14 +174,7 @@ fun DetailScreen(
             resumeEpisode = resumeEpisode,
             isBookmarked = isBookmarked,
             onBackClick = { if (currentAnime != anime) currentAnime = anime else onBackClick() },
-            onToggleBookmark = {
-                val willBookmark = !isBookmarked
-                isBookmarked = willBookmark
-                scope.launch {
-                    if (willBookmark) ApiClient.addBookmark(BookmarkItem(slug = currentAnime.slug, title = currentAnime.title, poster = currentAnime.poster, type = currentAnime.status ?: "ANIME"))
-                    else ApiClient.removeBookmark(currentAnime.slug)
-                }
-            },
+            onToggleBookmark = toggleBookmark,
             onPlayEpisodeClick = { ep -> onPlayEpisodeClick(currentAnime, ep) }
         )
     }

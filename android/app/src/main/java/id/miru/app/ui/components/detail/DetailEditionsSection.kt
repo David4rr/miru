@@ -3,18 +3,7 @@ package id.miru.app.ui.components.detail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -105,11 +94,7 @@ fun DetailEditionsSection(
                         .width(135.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(DarkSurfaceVariant)
-                        .border(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = borderColor,
-                            shape = RoundedCornerShape(10.dp)
-                        )
+                        .border(if (isSelected) 1.5.dp else 1.dp, borderColor, RoundedCornerShape(10.dp))
                         .clickable(enabled = !isSelected) { onEditionClick(edition) }
                 ) {
                     Box(
@@ -131,11 +116,7 @@ fun DetailEditionsSection(
                                 .fillMaxWidth()
                                 .height(60.dp)
                                 .align(Alignment.BottomCenter)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-                                    )
-                                )
+                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
                         )
 
                         // Season / Edition badge (Top-Left)
@@ -175,10 +156,31 @@ fun DetailEditionsSection(
                         }
                     }
 
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text(edition.displayTitle, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isSelected) CrunchyOrange else Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 16.sp)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(edition.displaySubtitle, fontSize = 11.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = edition.displayTitle,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) CrunchyOrange else Color.White,
+                            minLines = 2,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 16.sp
+                        )
+                        Text(
+                            text = edition.displaySubtitle,
+                            fontSize = 11.sp,
+                            color = TextMuted,
+                            minLines = 1,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }

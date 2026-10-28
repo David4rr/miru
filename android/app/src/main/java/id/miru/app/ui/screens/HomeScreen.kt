@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
@@ -18,6 +19,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.ApiClient
 import id.miru.app.data.HomeCatalog
+import id.miru.app.data.RecommendationEngine
 import id.miru.app.data.WatchHistoryItem
 import id.miru.app.ui.components.OrangeButton
 import id.miru.app.ui.components.home.HomeTopHeader
@@ -50,15 +53,30 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     var catalog by remember { mutableStateOf<HomeCatalog?>(null) }
+    var history by remember { mutableStateOf<List<WatchHistoryItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+
+    val scrollOffset by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) 1000f
+            else listState.firstVisibleItemScrollOffset.toFloat()
+        }
+    }
+    val parallaxOffset = (scrollOffset * 0.45f).coerceAtMost(160f)
+
+    val recommendation = remember(catalog, history) {
+        catalog?.let { RecommendationEngine.generateRecommendations(it, history) }
+    }
 
     fun loadData(showFullLoading: Boolean = false) {
         scope.launch {
             if (showFullLoading) isLoading = true
             errorMessage = null
+            ApiClient.getHistory().onSuccess { history = it }
             ApiClient.getHomeCatalog()
                 .onSuccess {
                     catalog = it
@@ -123,6 +141,7 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 72.dp)
                     ) {
@@ -135,7 +154,9 @@ fun HomeScreen(
                                 catalog = c,
                                 onAnimeClick = onAnimeClick,
                                 onContinueWatchClick = onContinueWatchClick,
-                                onScheduleClick = onScheduleClick
+                                onScheduleClick = onScheduleClick,
+                                parallaxOffset = parallaxOffset,
+                                recommendation = recommendation
                             )
                         }
                     }

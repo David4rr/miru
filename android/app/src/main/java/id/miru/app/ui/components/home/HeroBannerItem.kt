@@ -28,8 +28,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,19 +51,23 @@ fun HeroBannerItem(
     anime: AnimeCard,
     onItemClick: (AnimeCard) -> Unit,
     onWatchClick: (AnimeCard) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    parallaxOffset: Float = 0f
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(380.dp)
+            .clipToBounds()
             .clickable { onItemClick(anime) }
     ) {
         AsyncImage(
             model = anime.banner ?: anime.poster,
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationY = parallaxOffset }
         )
 
         Box(

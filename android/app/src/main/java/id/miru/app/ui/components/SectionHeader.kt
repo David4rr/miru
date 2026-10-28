@@ -8,9 +8,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,6 +93,8 @@ fun OrangeButton(
 fun SectionHeader(
     title: String,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    badge: String? = null,
     onSeeAllClick: (() -> Unit)? = null
 ) {
     Row(
@@ -101,19 +105,46 @@ fun SectionHeader(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 3.dp, height = 16.dp)
+                .size(width = 3.dp, height = if (subtitle != null) 28.dp else 16.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(CrunchyOrange)
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = title,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            letterSpacing = 0.2.sp,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    letterSpacing = 0.2.sp
+                )
+                if (badge != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(CrunchyOrange.copy(alpha = 0.16f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = badge,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CrunchyOrange
+                        )
+                    }
+                }
+            }
+            if (subtitle != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = TextMuted
+                )
+            }
+        }
         if (onSeeAllClick != null) {
             Row(
                 modifier = Modifier

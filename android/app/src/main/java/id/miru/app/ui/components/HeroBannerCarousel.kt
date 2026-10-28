@@ -39,7 +39,8 @@ fun HeroBannerCarousel(
     items: List<AnimeCard>,
     onItemClick: (AnimeCard) -> Unit,
     onWatchClick: (AnimeCard) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    parallaxOffset: Float = 0f
 ) {
     if (items.isEmpty()) return
 
@@ -68,7 +69,8 @@ fun HeroBannerCarousel(
             HeroBannerItem(
                 anime = items[page],
                 onItemClick = onItemClick,
-                onWatchClick = onWatchClick
+                onWatchClick = onWatchClick,
+                parallaxOffset = parallaxOffset
             )
         }
 

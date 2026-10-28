@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.10"
+        "0.2.11"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,30 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.11",
+                versionName = "0.2.11",
+                title = "Miru Android v0.2.11 (Parallax Home, Smart Recommendations & UI Polish)",
+                body = """
+                    ### Miru Android v0.2.11
+
+                    #### 🎬 Animasi Parallax HomeScreen:
+                    - **Parallax Banner Carousel:** Hero banner pada `HomeScreen` kini dilengkapi translasi parallax dinamis (0.45x scroll offset) dan viewport clipping, menghadirkan konsistensi efek kedalaman sinematik di seluruh layar utama.
+
+                    #### 🎯 Rekomendasi Pintar (Smart Recommendation Engine):
+                    - **Personalisasi Berdasarkan Riwayat:** Mesin rekomendasi pintar (`RecommendationEngine`) menganalisis riwayat tontonan dan afinitas genre pengguna, memfilter judul yang sudah ditonton, dan menampilkan swimlane rekomendasi kontekstual ("Rekomendasi Pintar • Untukmu") di `HomeScreen`.
+
+                    #### 🧹 Eliminasi Redundansi & Perapian Detail:
+                    - **Konsolidasi Tombol Bookmark:** Menghapus tombol bookmark duplikat di `DetailHeroHeader`, memberikan ruang penuh pada tipografi judul dan mengonsolidasikan aksi penanda buku secara eksklusif ke dalam `DetailTopBar`.
+
+                    #### 📐 Stabilisasi Dimensi Kartu Edisi Franchise:
+                    - **Dimensi Seragam (235dp):** Menetapkan kontainer teks tetap (60dp) dengan batas `minLines`/`maxLines` pada judul dan subjudul di `DetailEditionsSection`, memastikan seluruh kartu edisi memiliki tinggi yang presisi tanpa pergeseran baseline.
+                """.trimIndent(),
+                publishedAt = "2026-10-28",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.11/Miru-v0.2.11-release.apk",
+                apkSize = 22700000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.10",
                 versionName = "0.2.10",
