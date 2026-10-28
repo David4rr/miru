@@ -391,6 +391,7 @@ object ApiClient {
                             status = if (obj.has("status") && !obj.isNull("status")) obj.optString("status") else null,
                             seasonYear = if (obj.has("season_year") && !obj.isNull("season_year")) obj.optInt("season_year") else null,
                             episodes = if (obj.has("episodes") && !obj.isNull("episodes")) obj.optInt("episodes") else null,
+                            episodesReleased = if (obj.has("episodes_released") && !obj.isNull("episodes_released")) obj.optInt("episodes_released") else null,
                             poster = obj.optString("poster"),
                             score = if (obj.has("score") && !obj.isNull("score")) obj.optDouble("score") else null,
                             editionLabel = obj.optString("edition_label", "S1"),

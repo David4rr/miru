@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.8"
+        "0.2.9"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,26 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.9",
+                versionName = "0.2.9",
+                title = "Miru Android v0.2.9 (Eliminate Fake Episodes, Exact Airing Bounds & Franchise Sync)",
+                body = """
+                    ### Miru Android v0.2.9
+
+                    #### 🎬 Eliminasi Episode Fiktif & Sinkronisasi Penayangan (Fake EP Elimination & Airing Accuracy):
+                    - **Penghitungan Episode Riil Berdasarkan Penayangan (`actualEpisodeCount`):** Menghapus fallback asal 12 episode (`episodes ?: 12`) dan membatasi daftar episode secara ketat hanya pada episode yang telah diverifikasi tayang (`episodesReleased`), mencegah tombol episode fiktif untuk anime yang sedang tayang.
+                    - **Perlindungan Anime Belum Rilis / Jadwal Mendatang:** Anime berstatus `NOT_YET_RELEASED` (atau `RELEASING` yang episode perdananya belum tayang) kini secara mutlak memiliki 0 episode yang dapat diputar, menampilkan banner informatif jadwal mendatang alih-alih daftar episode kosong atau palsu.
+                    - **Tampilan Lencana Penayangan Akurat:** Memperbaiki `displayEpisodes` dan subjudul musim anime agar menampilkan status penayangan terkini (misal: "Ep 4 / 12" atau "Ep 4") alih-alih mengklaim seluruh episode sudah tersedia ("12 Eps").
+                    - **Sinkronisasi Episode Lintas Musim / Edisi Franchise:** Menambahkan kueri `nextAiringEpisode` pada relasi waralaba anime dan parsing `episodes_released` pada `AnimeEdition`, sehingga pemilihan musim berbeda pada halaman detail langsung menyajikan jumlah episode yang valid tanpa episode fiktif.
+                    - **Pencegahan Loncat ke Episode Fiktif di Pemutar Video:** Memperbaiki batas `hasNextEpisode`, tombol episode berikutnya, dan auto-advance pemutar video agar tidak melompat ke episode mendatang yang belum dirilis saat episode terbaru selesai ditonton.
+                    - **Validasi Parameter Resolusi Stream:** Menambahkan validasi ketat `ep < 1` pada API daemon stream untuk menolak permintaan episode tidak valid sebelum memanggil scraper upstream.
+                """.trimIndent(),
+                publishedAt = "2026-10-28",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.9/Miru-v0.2.9-release.apk",
+                apkSize = 22600000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.8",
                 versionName = "0.2.8",

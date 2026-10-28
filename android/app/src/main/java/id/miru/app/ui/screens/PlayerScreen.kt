@@ -52,7 +52,15 @@ fun PlayerScreen(
     var isScreenLocked by remember { mutableStateOf(false) }; var showUnlockButton by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }; var showEpisodeSheet by remember { mutableStateOf(false) }
     var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }; var seekRippleSide by remember { mutableStateOf<String?>(null) }
-    val totalEpisodes = if (anime.isNotYetReleased) 0 else (anime.episodes ?: 12)
+    var animeMetadata by remember(anime.slug) { mutableStateOf(anime) }
+    LaunchedEffect(anime.slug) {
+        if (anime.id == 0L || anime.episodes == null) {
+            ApiClient.getAnimeEditions(anime.id, anime.slug).onSuccess { list ->
+                list.firstOrNull { it.isCurrent }?.let { animeMetadata = it.toAnimeCard() }
+            }
+        }
+    }
+    val totalEpisodes = animeMetadata.actualEpisodeCount.coerceAtLeast(currentEpisode)
 
     fun ping() { lastInteraction = System.currentTimeMillis(); areControlsVisible = true }
     fun saveProgress(explicit: Int? = null) = saveWatchProgressAsync(anime.slug, currentEpisode, currentPosition, duration, explicit)
@@ -70,7 +78,8 @@ fun PlayerScreen(
         scope.launch {
             val resumeMs = fetchResumePositionMs(anime.slug, currentEpisode)
             prepareMediaStream(
-                slug = anime.slug, episode = currentEpisode, malId = anime.idMal, title = anime.title, exoPlayer = exoPlayer,
+                slug = animeMetadata.slug, episode = currentEpisode, malId = animeMetadata.idMal ?: anime.idMal,
+                title = animeMetadata.title.ifBlank { anime.title }, exoPlayer = exoPlayer,
                 resumePositionMs = resumeMs,
                 onSuccess = { res -> resolvedStream = res; isLoadingStream = false; ping() },
                 onFailure = { err -> isLoadingStream = false; isBuffering = false; streamErrorMessage = err }

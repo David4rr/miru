@@ -39,9 +39,35 @@ data class AnimeCard(
             else -> "Sedang Tayang"
         }
 
+    val actualEpisodeCount: Int
+        get() {
+            if (isNotYetReleased) return 0
+            if (isReleasing) {
+                if (episodesReleased != null) {
+                    if (episodesReleased <= 0) return 0
+                    return if (episodes != null && episodes > 0) episodesReleased.coerceAtMost(episodes) else episodesReleased
+                }
+                if (episodes != null && episodes > 0) return episodes
+                return 1
+            }
+            if (isFinished) {
+                return episodes ?: episodesReleased ?: 1
+            }
+            if (episodesReleased != null) {
+                if (episodesReleased <= 0) return 0
+                return episodesReleased
+            }
+            if (episodes != null && episodes > 0) return episodes
+            return 1
+        }
+
     val displayEpisodes: String
         get() = when {
-            isNotYetReleased -> "Segera Tayang"
+            isNotYetReleased || (isReleasing && episodesReleased != null && episodesReleased <= 0) -> "Segera Tayang"
+            isReleasing && episodesReleased != null && episodesReleased > 0 -> {
+                if (episodes != null && episodes > 0) "Ep $episodesReleased / $episodes"
+                else "Ep $episodesReleased"
+            }
             episodes != null && episodes > 0 -> "$episodes Eps"
             episodesReleased != null && episodesReleased > 0 -> "Ep $episodesReleased"
             isFinished -> "Tamat"
@@ -214,6 +240,7 @@ data class AnimeEdition(
     val status: String? = null,
     val seasonYear: Int? = null,
     val episodes: Int? = null,
+    val episodesReleased: Int? = null,
     val poster: String = "",
     val score: Double? = null,
     val editionLabel: String = "S1",
@@ -223,11 +250,51 @@ data class AnimeEdition(
     val displayTitle: String
         get() = titleEnglish?.takeIf { it.isNotBlank() } ?: title
 
+    val isNotYetReleased: Boolean
+        get() = status.equals("NOT_YET_RELEASED", ignoreCase = true)
+
+    val isFinished: Boolean
+        get() = status.equals("FINISHED", ignoreCase = true)
+
+    val isReleasing: Boolean
+        get() = status.equals("RELEASING", ignoreCase = true)
+
+    val actualEpisodeCount: Int
+        get() {
+            if (isNotYetReleased) return 0
+            if (isReleasing) {
+                if (episodesReleased != null) {
+                    if (episodesReleased <= 0) return 0
+                    return if (episodes != null && episodes > 0) episodesReleased.coerceAtMost(episodes) else episodesReleased
+                }
+                if (episodes != null && episodes > 0) return episodes
+                return 1
+            }
+            if (isFinished) {
+                return episodes ?: episodesReleased ?: 1
+            }
+            if (episodesReleased != null) {
+                if (episodesReleased <= 0) return 0
+                return episodesReleased
+            }
+            if (episodes != null && episodes > 0) return episodes
+            return 1
+        }
+
     val displaySubtitle: String
         get() {
             val parts = mutableListOf<String>()
             seasonYear?.let { parts.add(it.toString()) }
-            if (episodes != null && episodes > 0) parts.add("$episodes Ep")
+            if (isNotYetReleased || (isReleasing && episodesReleased != null && episodesReleased <= 0)) {
+                parts.add("Segera")
+            } else if (isReleasing && episodesReleased != null && episodesReleased > 0) {
+                if (episodes != null && episodes > 0) parts.add("Ep $episodesReleased / $episodes")
+                else parts.add("Ep $episodesReleased")
+            } else if (episodes != null && episodes > 0) {
+                parts.add("$episodes Ep")
+            } else if (episodesReleased != null && episodesReleased > 0) {
+                parts.add("Ep $episodesReleased")
+            }
             return parts.joinToString(" • ")
         }
 
@@ -241,6 +308,7 @@ data class AnimeEdition(
             poster = poster,
             score = score,
             episodes = episodes,
+            episodesReleased = episodesReleased,
             status = status,
             seasonYear = seasonYear
         )

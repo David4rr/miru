@@ -68,34 +68,43 @@ fun PlayerEpisodeSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 16.dp),
-                modifier = Modifier.heightIn(max = 280.dp)
-            ) {
-                items(totalEpisodes) { idx ->
-                    val ep = idx + 1
-                    val isSelected = ep == currentEpisode
-                    Box(
-                        modifier = Modifier
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) CrunchyOrange else DarkSurface)
-                            .border(1.dp, if (isSelected) CrunchyOrange else Color(0xFF2E303B), RoundedCornerShape(8.dp))
-                            .clickable {
-                                onSelectEpisode(ep)
-                                onDismissRequest()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "$ep",
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else TextMuted
-                        )
+            if (totalEpisodes == 0) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "Belum ada episode yang dirilis.", color = TextMuted, fontSize = 13.sp)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(5),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    modifier = Modifier.heightIn(max = 280.dp)
+                ) {
+                    items(totalEpisodes) { idx ->
+                        val ep = idx + 1
+                        val isSelected = ep == currentEpisode
+                        Box(
+                            modifier = Modifier
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) CrunchyOrange else DarkSurface)
+                                .border(1.dp, if (isSelected) CrunchyOrange else Color(0xFF2E303B), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    onSelectEpisode(ep)
+                                    onDismissRequest()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "$ep",
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else TextMuted
+                            )
+                        }
                     }
                 }
             }

@@ -86,6 +86,38 @@ pub fn slugify(title: &str) -> String {
     }
 }
 
+pub fn compute_episodes_released(
+    status: Option<&str>,
+    episodes: Option<i32>,
+    next_airing: Option<&Value>,
+) -> Option<i32> {
+    match status {
+        Some("NOT_YET_RELEASED") => Some(0),
+        Some("RELEASING") => {
+            if let Some(na) = next_airing {
+                if let Some(ep) = na.get("episode").and_then(|e| e.as_i64()) {
+                    let released = (ep - 1).max(0) as i32;
+                    return Some(if let Some(total) = episodes {
+                        released.min(total)
+                    } else {
+                        released
+                    });
+                }
+            }
+            episodes
+        }
+        Some("FINISHED") => episodes,
+        _ => {
+            if let Some(na) = next_airing {
+                if let Some(ep) = na.get("episode").and_then(|e| e.as_i64()) {
+                    return Some((ep - 1).max(0) as i32);
+                }
+            }
+            episodes
+        }
+    }
+}
+
 fn parse_media_item(m: &Value) -> Option<AnimeCard> {
     let id = m.get("id")?.as_i64()?;
     let id_mal = m.get("idMal").and_then(|v| v.as_i64());
@@ -106,14 +138,10 @@ fn parse_media_item(m: &Value) -> Option<AnimeCard> {
     let score = m.get("averageScore").and_then(|v| v.as_f64()).map(|s| s / 10.0);
     let episodes = m.get("episodes").and_then(|v| v.as_i64()).map(|e| e as i32);
 
-    let next_airing = m.get("nextAiringEpisode");
-    let episodes_released = if let Some(na) = next_airing {
-        na.get("episode").and_then(|e| e.as_i64()).map(|e| (e - 1) as i32)
-    } else {
-        episodes
-    };
-
     let status = m.get("status").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let next_airing = m.get("nextAiringEpisode");
+    let episodes_released = compute_episodes_released(status.as_deref(), episodes, next_airing);
+
     let season_year = m.get("seasonYear").and_then(|v| v.as_i64()).map(|y| y as i32);
 
     let genres = m.get("genres")
@@ -553,6 +581,7 @@ pub struct AnimeEdition {
     pub status: Option<String>,
     pub season_year: Option<i32>,
     pub episodes: Option<i32>,
+    pub episodes_released: Option<i32>,
     pub poster: String,
     pub score: Option<f64>,
     pub edition_label: String,
@@ -567,6 +596,7 @@ query AnimeRelations($id: Int) {
     startDate { year month day }
     title { romaji english }
     coverImage { large medium }
+    nextAiringEpisode { episode }
     relations {
       edges {
         relationType
@@ -575,6 +605,7 @@ query AnimeRelations($id: Int) {
           startDate { year month day }
           title { romaji english }
           coverImage { large medium }
+          nextAiringEpisode { episode }
           relations {
             edges {
               relationType
@@ -583,6 +614,7 @@ query AnimeRelations($id: Int) {
                 startDate { year month day }
                 title { romaji english }
                 coverImage { large medium }
+                nextAiringEpisode { episode }
               }
             }
           }
@@ -651,6 +683,8 @@ pub async fn fetch_anime_editions(target_id: i64) -> Result<Vec<AnimeEdition>> {
         let status = node.get("status").and_then(|s| s.as_str()).map(|s| s.to_string());
         let episodes = node.get("episodes").and_then(|e| e.as_i64()).map(|e| e as i32);
         let season_year = node.get("seasonYear").and_then(|y| y.as_i64()).map(|y| y as i32);
+        let next_airing = node.get("nextAiringEpisode");
+        let episodes_released = compute_episodes_released(status.as_deref(), episodes, next_airing);
         let score = node.get("averageScore").and_then(|s| s.as_f64()).map(|s| s / 10.0);
 
         let title_obj = node.get("title");
@@ -687,6 +721,7 @@ pub async fn fetch_anime_editions(target_id: i64) -> Result<Vec<AnimeEdition>> {
             status,
             season_year,
             episodes,
+            episodes_released,
             poster,
             score,
             edition_label,

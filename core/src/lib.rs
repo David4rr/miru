@@ -121,6 +121,12 @@ async fn resolve_stream_handler(
     State(state): State<AppState>,
     Query(params): Query<ResolveParams>,
 ) -> Response {
+    if params.ep < 1 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "success": false, "error": "Invalid episode number (must be >= 1)" })),
+        ).into_response();
+    }
     let mode = params.mode.unwrap_or_else(|| "sub".to_string());
     match api::stream::resolve_stream(&params.slug, params.ep, &mode, params.mal_id, params.title.as_deref(), &state.db).await {
         Ok(stream) => Json(json!({ "success": true, "data": stream })).into_response(),

@@ -61,17 +61,23 @@ fun DetailScreen(
     LaunchedEffect(currentAnime.slug) {
         ApiClient.getBookmarks().onSuccess { list -> isBookmarked = list.any { it.slug == currentAnime.slug } }
         ApiClient.getHistory().onSuccess { list -> watchedHistory = list.firstOrNull { it.slug == currentAnime.slug } }
-        ApiClient.getAnimeEditions(currentAnime.id, currentAnime.slug).onSuccess { list -> editions = list }
+        ApiClient.getAnimeEditions(currentAnime.id, currentAnime.slug).onSuccess { list ->
+            editions = list
+            if (currentAnime.id == 0L || currentAnime.episodes == null) {
+                list.firstOrNull { it.isCurrent }?.let { currentAnime = it.toAnimeCard() }
+            }
+        }
     }
 
-    val totalEpisodes = if (currentAnime.isNotYetReleased) 0 else (currentAnime.episodes ?: 12)
+    val totalEpisodes = currentAnime.actualEpisodeCount
     val lastWatchedEp = watchedHistory?.episode ?: 1
     val lastProgress = watchedHistory?.progress ?: 0
     val isLastEpFinished = lastProgress >= 85
     val resumeEpisode = when {
+        totalEpisodes == 0 -> 1
         watchedHistory == null -> 1
-        isLastEpFinished && (totalEpisodes == 0 || lastWatchedEp < totalEpisodes) -> lastWatchedEp + 1
-        else -> lastWatchedEp
+        isLastEpFinished && lastWatchedEp < totalEpisodes -> lastWatchedEp + 1
+        else -> lastWatchedEp.coerceIn(1, totalEpisodes.coerceAtLeast(1))
     }
     val currentProgress = if (isLastEpFinished) 0 else lastProgress
 
