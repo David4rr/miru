@@ -62,13 +62,16 @@ fun DetailTopBar(
         label = "playPress"
     )
 
+    val bgModifier = if (morphProgress > 0f) {
+        Modifier.background(DarkBackground.copy(alpha = morphProgress))
+    } else {
+        Modifier.background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)))
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                if (morphProgress > 0f) DarkBackground.copy(alpha = morphProgress)
-                else Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent))
-            )
+            .then(bgModifier)
             .statusBarsPadding()
     ) {
         if (morphProgress >= 0.95f) {
