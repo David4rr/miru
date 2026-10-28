@@ -24,21 +24,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import kotlin.math.absoluteValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.AppRelease
 import id.miru.app.data.UpdateManager
 import id.miru.app.ui.components.UpdateAvailableBottomSheet
 import id.miru.app.ui.components.UpdateBanner
-import id.miru.app.ui.components.OledBottomNavBar
+import id.miru.app.ui.components.FloatingNavFab
 import id.miru.app.ui.screens.DetailScreen
 import id.miru.app.ui.screens.HomeScreen
 import id.miru.app.ui.screens.LibraryScreen
@@ -84,8 +83,18 @@ fun MainApp() {
     var activePlayingSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }
     var availableUpdate by remember { mutableStateOf<AppRelease?>(null) }; var showUpdateSheet by remember { mutableStateOf(false) }
     var showScheduleScreen by remember { mutableStateOf(false) }; var isUpdateBannerDismissed by remember { mutableStateOf(false) }
+    var isFabVisible by remember { mutableStateOf(true) }; var lastScrollTime by remember { mutableLongStateOf(0L) }
     var lastAnime by remember { mutableStateOf<AnimeCard?>(null) }; if (selectedAnime != null) lastAnime = selectedAnime
     var lastSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }; if (activePlayingSession != null) lastSession = activePlayingSession
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y.absoluteValue > 3f) { lastScrollTime = System.currentTimeMillis(); isFabVisible = false }
+                return Offset.Zero
+            }
+        }
+    }
+    LaunchedEffect(isFabVisible, lastScrollTime) { if (!isFabVisible) { delay(1200); isFabVisible = true } }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -128,26 +137,13 @@ fun MainApp() {
                 ScheduleScreen(onAnimeClick = { selectedAnime = it }, onBackClick = { showScheduleScreen = false })
             }
             else -> {
-                Scaffold(
-                    containerColor = DarkOled,
-                    bottomBar = {
-                        OledBottomNavBar(
-                            selectedTab = selectedTab,
-                            onTabSelected = { selectedTab = it }
-                        )
-                    }
-                ) { innerPadding ->
+                Box(modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
                     if (showUpdateSheet) {
                         availableUpdate?.let { rel ->
                             UpdateAvailableBottomSheet(release = rel, onDismissRequest = { showUpdateSheet = false })
                         }
                     }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(DarkOled)
-                            .padding(innerPadding)
-                    ) {
+                    Column(modifier = Modifier.fillMaxSize().background(DarkOled)) {
                         if (!isUpdateBannerDismissed) {
                             availableUpdate?.let { rel ->
                                 UpdateBanner(release = rel, onViewUpdateClick = { showUpdateSheet = true }, onDismissClick = { isUpdateBannerDismissed = true })
@@ -156,9 +152,7 @@ fun MainApp() {
                         Box(modifier = Modifier.weight(1f)) {
                             AnimatedContent(
                                 targetState = selectedTab,
-                                transitionSpec = {
-                                    fadeIn(tween(180)) togetherWith fadeOut(tween(180))
-                                },
+                                transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(180)) },
                                 label = "tabTransition",
                                 modifier = Modifier.fillMaxSize()
                             ) { tab ->
@@ -184,6 +178,12 @@ fun MainApp() {
                             }
                         }
                     }
+                    FloatingNavFab(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it },
+                        isVisible = isFabVisible,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }

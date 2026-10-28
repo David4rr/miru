@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.6"
+        "0.2.7"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,25 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.7",
+                versionName = "0.2.7",
+                title = "Miru Android v0.2.7 (Floating Action Button Navigation & Clean Player HUD)",
+                body = """
+                    ### Miru Android v0.2.7
+
+                    #### 🚀 Fitur Unggulan & Pembaruan UX (Major Features & UX):
+                    - **Navigasi Floating Action Button (FAB):** Mengganti bilah navigasi bawah statis dengan Floating Action Button interaktif beranimasi yang mempertahankan seluruh menu utama (Beranda, Jelajah, Koleksi, Pengaturan).
+                    - **Responsif Terhadap Gulir (Auto-Hide & Idle-Reappear):** Tombol melayang otomatis menyelinap keluar saat pengguna menggulir layar dan muncul kembali secara halus saat diam/idle untuk tampilan konten yang lebih luas dan imersif.
+                    - **Penjelajahan Edge-to-Edge:** Menghilangkan ruang kosong bilah bawah permanen sehingga daftar anime dapat mengalir bebas di balik tombol navigasi.
+                    - **Pembersihan Fitur Auto-Skip Intro/Outro:** Menghapus mesin auto-skip pembuka dan penutup yang kerap tidak akurat agar alur video tidak terputus tanpa sengaja.
+                    - **Player HUD Bersih & Sinematik:** Menghapus tombol lewati manual dan tombol toggle auto-skip dari HUD pemutar video untuk pengalaman menonton yang bebas gangguan.
+                """.trimIndent(),
+                publishedAt = "2026-10-28",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.7/Miru-v0.2.7-release.apk",
+                apkSize = 22600000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.6",
                 versionName = "0.2.6",

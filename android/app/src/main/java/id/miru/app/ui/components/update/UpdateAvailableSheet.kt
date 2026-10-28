@@ -188,9 +188,7 @@ fun UpdateAvailableBottomSheet(
                 is UpdateDownloadState.Error -> {
                     Text(text = "Gagal Mengunduh: ${state.message}", color = Color(0xFFFF5252), fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { startDownload() }, colors = ButtonDefaults.buttonColors(containerColor = CrunchyrollOrange, contentColor = Color.Black)) {
-                        Text(text = "Coba Lagi")
-                    }
+                    Button(onClick = { startDownload() }, colors = ButtonDefaults.buttonColors(containerColor = CrunchyrollOrange, contentColor = Color.Black)) { Text("Coba Lagi") }
                 }
             }
         }

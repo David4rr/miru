@@ -20,8 +20,6 @@ fun PlayerControlsOverlay(
     isVisible: Boolean,
     title: String,
     episode: Int,
-    isAutoSkipEnabled: Boolean,
-    onToggleAutoSkip: () -> Unit,
     onToggleLock: () -> Unit,
     onBackClick: () -> Unit,
     isPlaying: Boolean,
@@ -76,8 +74,6 @@ fun PlayerControlsOverlay(
                 PlayerTopControls(
                     title = title,
                     episode = episode,
-                    isAutoSkipEnabled = isAutoSkipEnabled,
-                    onToggleAutoSkip = onToggleAutoSkip,
                     isScreenLocked = false,
                     onToggleLock = onToggleLock,
                     onBackClick = onBackClick

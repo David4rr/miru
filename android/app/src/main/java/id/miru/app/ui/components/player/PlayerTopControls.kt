@@ -14,10 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.Icon
@@ -38,8 +36,6 @@ import id.miru.app.ui.theme.CrunchyOrange
 fun PlayerTopControls(
     title: String,
     episode: Int,
-    isAutoSkipEnabled: Boolean,
-    onToggleAutoSkip: () -> Unit,
     isScreenLocked: Boolean,
     onToggleLock: () -> Unit,
     onBackClick: () -> Unit,
@@ -68,25 +64,6 @@ fun PlayerTopControls(
             Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(text = "Episode $episode", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Auto-Skip Toggle
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(if (isAutoSkipEnabled) CrunchyOrange.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.4f))
-                .border(1.dp, if (isAutoSkipEnabled) CrunchyOrange else Color(0xFF333540), RoundedCornerShape(16.dp))
-                .clickable { onToggleAutoSkip() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(imageVector = Icons.Default.FastForward, contentDescription = null, tint = if (isAutoSkipEnabled) CrunchyOrange else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = if (isAutoSkipEnabled) "Auto Skip" else "Manual", color = if (isAutoSkipEnabled) CrunchyOrange else Color.White.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
 
         // Screen Lock Button
         IconButton(

@@ -176,25 +176,9 @@ fun DetailEditionsSection(
                     }
 
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Text(
-                            text = edition.displayTitle,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSelected) CrunchyOrange else Color.White,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 16.sp
-                        )
-
+                        Text(edition.displayTitle, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (isSelected) CrunchyOrange else Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 16.sp)
                         Spacer(modifier = Modifier.height(2.dp))
-
-                        Text(
-                            text = edition.displaySubtitle,
-                            fontSize = 11.sp,
-                            color = TextMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Text(edition.displaySubtitle, fontSize = 11.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

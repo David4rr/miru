@@ -62,8 +62,7 @@ fun SearchScreen(
     onAnimeClick: (AnimeCard) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<AnimeCard>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }; var searchResults by remember { mutableStateOf<List<AnimeCard>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery) {
