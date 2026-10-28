@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.PlaybackParameters
+import id.miru.app.data.ApiClient
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.ResolvedStream
 import id.miru.app.ui.components.player.PlayerControlsOverlay
