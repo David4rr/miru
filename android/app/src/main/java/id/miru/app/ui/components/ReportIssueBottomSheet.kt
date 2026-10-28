@@ -148,7 +148,7 @@ fun ReportIssueBottomSheet(
                     try {
                         val encTitle = URLEncoder.encode(title, "UTF-8")
                         val encBody = URLEncoder.encode(report, "UTF-8")
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/David4rr/tatap/issues/new?title=$encTitle&body=$encBody")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/David4rr/miru/issues/new?title=$encTitle&body=$encBody")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
                         context.startActivity(intent)
                         onDismissRequest()
                     } catch (e: Exception) {

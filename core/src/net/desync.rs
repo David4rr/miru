@@ -27,7 +27,7 @@ pub async fn resolve_host(host: &str) -> Result<String> {
         }
     }
 
-    // Known hardcoded fallback IPs for Tatap video CDNs
+    // Known hardcoded fallback IPs for Miru video CDNs
     if host.contains("dramahot.top") {
         let ip = "93.123.109.210".to_string();
         DNS_CACHE.lock().insert(host.to_string(), ip.clone());

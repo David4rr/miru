@@ -18,7 +18,7 @@ import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
 object UpdateManager {
-    private const val GITHUB_REPO = "David4rr/tatap"
+    private const val GITHUB_REPO = "David4rr/miru"
     private const val API_LATEST = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
     private const val API_RELEASES = "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=15"
 
@@ -75,7 +75,7 @@ object UpdateManager {
             val request = Request.Builder()
                 .url(API_RELEASES)
                 .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "Tatap-Android-App")
+                .header("User-Agent", "Miru-Android-App")
                 .get()
                 .build()
 
@@ -145,7 +145,7 @@ object UpdateManager {
         runCatching {
             val request = Request.Builder()
                 .url(downloadUrl)
-                .header("User-Agent", "Tatap-Android-App")
+                .header("User-Agent", "Miru-Android-App")
                 .get()
                 .build()
 
@@ -241,7 +241,7 @@ object UpdateManager {
                     - **Desain Arsitektural Presisi:** Menerapkan garis tepi hairline 1px halus (`#26262B`), palet warm obsidian matte, dan tipografi berjarak bersih sesuai panduan `minimalist-ui`.
                 """.trimIndent(),
                 publishedAt = "2026-10-28",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.10/Miru-v0.2.10-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.10/Miru-v0.2.10-release.apk",
                 apkSize = 22600000L,
                 isNewer = false
             ),
@@ -261,7 +261,7 @@ object UpdateManager {
                     - **Validasi Parameter Resolusi Stream:** Menambahkan validasi ketat `ep < 1` pada API daemon stream untuk menolak permintaan episode tidak valid sebelum memanggil scraper upstream.
                 """.trimIndent(),
                 publishedAt = "2026-10-28",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.9/Miru-v0.2.9-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.9/Miru-v0.2.9-release.apk",
                 apkSize = 22600000L,
                 isNewer = false
             ),
@@ -280,7 +280,7 @@ object UpdateManager {
                     - **Penanganan Timeout & Error Informatif:** Memperpanjang batas waktu OkHttp Android dari 15s menjadi 35s untuk jaringan seluler, serta membaca detail JSON error dari daemon agar pengguna melihat pesan yang jelas alih-alih HTTP 500 generik.
                 """.trimIndent(),
                 publishedAt = "2026-10-28",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.8/Miru-v0.2.8-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.8/Miru-v0.2.8-release.apk",
                 apkSize = 22600000L,
                 isNewer = false
             ),
@@ -299,7 +299,7 @@ object UpdateManager {
                     - **Player HUD Bersih & Sinematik:** Menghapus tombol lewati manual dan tombol toggle auto-skip dari HUD pemutar video untuk pengalaman menonton yang bebas gangguan.
                 """.trimIndent(),
                 publishedAt = "2026-10-28",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.7/Miru-v0.2.7-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.7/Miru-v0.2.7-release.apk",
                 apkSize = 22600000L,
                 isNewer = false
             ),
@@ -316,7 +316,7 @@ object UpdateManager {
                     - **Penanganan Error Pemutar Lebih Tangguh:** Blok `try-catch` terisolasi pada background poller pemutar untuk menjamin graceful exit saat ExoPlayer dilepaskan.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.6/Miru-v0.2.6-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.6/Miru-v0.2.6-release.apk",
                 apkSize = 22600000L,
                 isNewer = false
             ),
@@ -337,7 +337,7 @@ object UpdateManager {
                     - Kunci refresh rate 120Hz dan dok navigasi OLED beranimasi.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.5/Miru-v0.2.5-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.5/Miru-v0.2.5-release.apk",
                 apkSize = 22600000L,
                 isNewer = false
             ),
@@ -368,7 +368,7 @@ object UpdateManager {
                     - **Smart Skip & Timeline Edisi Anime:** Dukungan lewati intro/outro yang akurat serta daftar urutan musim waralaba (S1-SN).
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.4/Miru-v0.2.4-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.4/Miru-v0.2.4-release.apk",
                 apkSize = 23700000L,
                 isNewer = false
             ),
@@ -397,7 +397,7 @@ object UpdateManager {
                     - **Navigasi Edisi Instan:** Sekali sentuh pada edisi yang diinginkan langsung menampilkan episode dan detail anime musim tersebut.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.3/Miru-v0.2.3-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.3/Miru-v0.2.3-release.apk",
                 apkSize = 35900000L,
                 isNewer = false
             ),
@@ -424,7 +424,7 @@ object UpdateManager {
                     - **Format Catatan Rilis Rapi:** Tampilan changelog kini diformat terstruktur dengan tag pill kategori, bullet point bersih, dan teks tebal yang nyaman dibaca.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.0/Miru-v0.2.0-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.0/Miru-v0.2.0-release.apk",
                 apkSize = 35900000L,
                 isNewer = false
             ),
@@ -450,7 +450,7 @@ object UpdateManager {
                     - **Dukungan Kirim ke GitHub & Salin ke Clipboard:** Kemudahan mengirimkan issue terstruktur ke GitHub atau menyalin ringkasan diagnostik untuk dibagikan.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.6/Tatap-v0.1.6-release.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.6/Tatap-v0.1.6-release.apk",
                 apkSize = 32000000L,
                 isNewer = false
             ),
@@ -468,7 +468,7 @@ object UpdateManager {
                     - **Halaman Pengaturan Baru:** Tab Pengaturan terintegrasi untuk mengelola pembaruan aplikasi, status core daemon, dan pembersihan cache tontonan.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.5/Tatap-v0.1.5-debug.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.5/Tatap-v0.1.5-debug.apk",
                 apkSize = 44200000L,
                 isNewer = false
             ),
@@ -496,7 +496,7 @@ object UpdateManager {
                     - Persistent genre chips di halaman pencarian dan hapus riwayat individual di koleksi.
                 """.trimIndent(),
                 publishedAt = "2026-10-27",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.4/Tatap-v0.1.4-debug.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.4/Tatap-v0.1.4-debug.apk",
                 apkSize = 44145000L,
                 isNewer = false
             ),
@@ -511,7 +511,7 @@ object UpdateManager {
                     - Forwarding header HTTP Range untuk video seeking 206 Partial Content.
                 """.trimIndent(),
                 publishedAt = "2026-10-26",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.3/Tatap-v0.1.3-debug.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.3/Tatap-v0.1.3-debug.apk",
                 apkSize = 44000000L,
                 isNewer = false
             ),
@@ -526,7 +526,7 @@ object UpdateManager {
                     - Padding status bar dan navigation bar pada layar detail.
                 """.trimIndent(),
                 publishedAt = "2026-10-26",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.2/Tatap-v0.1.2-debug.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.2/Tatap-v0.1.2-debug.apk",
                 apkSize = 43900000L,
                 isNewer = false
             ),
@@ -540,7 +540,7 @@ object UpdateManager {
                     - Deobfuscasi stream ZokoAnime ultra-cepat (<0.4 detik).
                 """.trimIndent(),
                 publishedAt = "2026-10-26",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.1/Tatap-v0.1.1-debug.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.1/Tatap-v0.1.1-debug.apk",
                 apkSize = 43800000L,
                 isNewer = false
             ),
@@ -555,7 +555,7 @@ object UpdateManager {
                     - Antarmuka Native Jetpack Compose bernuansa Crunchyroll OLED.
                 """.trimIndent(),
                 publishedAt = "2026-10-26",
-                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.1.0/Tatap-v0.1.0-debug.apk",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.1.0/Tatap-v0.1.0-debug.apk",
                 apkSize = 43700000L,
                 isNewer = false
             )

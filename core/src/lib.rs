@@ -30,7 +30,7 @@ pub struct AppState {
     pub db: Database,
 }
 
-/// Core Axum router definition with all Tatap API routes
+/// Core Axum router definition with all Miru API routes
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/api/ping", get(ping_handler))
@@ -396,7 +396,7 @@ pub fn start_server(data_dir: &str, port: u16) -> Result<(), anyhow::Error> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
-        .thread_name("tatap-core-worker")
+        .thread_name("miru-core-worker")
         .build()?;
 
     std::thread::spawn(move || {
@@ -407,7 +407,7 @@ pub fn start_server(data_dir: &str, port: u16) -> Result<(), anyhow::Error> {
             match tokio::net::TcpListener::bind(addr).await {
                 Ok(listener) => {
                     IS_RUNNING.store(true, Ordering::SeqCst);
-                    tracing::info!("Tatap Rust Core listening on http://{}", addr);
+                    tracing::info!("Miru Rust Core listening on http://{}", addr);
 
                     let _ = axum::serve(listener, app)
                         .with_graceful_shutdown(async move {

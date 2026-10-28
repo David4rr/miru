@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "tatap"
+rootProject.name = "miru"
 include(":app")
