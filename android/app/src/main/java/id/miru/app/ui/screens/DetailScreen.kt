@@ -86,7 +86,7 @@ fun DetailScreen(
     }
     val parallaxOffset = (scrollOffset * 0.45f).coerceAtMost(160f)
 
-    val toggleBookmark = {
+    val toggleBookmark: () -> Unit = {
         val willBookmark = !isBookmarked
         isBookmarked = willBookmark
         scope.launch {
