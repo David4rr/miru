@@ -6,8 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,15 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.miru.app.ui.theme.CrunchyrollOrange
-import id.miru.app.ui.theme.DarkOled
 import id.miru.app.ui.theme.TextMuted
 import id.miru.app.ui.theme.TextPrimary
 
@@ -44,11 +42,6 @@ val NAV_FAB_TABS = listOf(
     NavFabTab("Pengaturan", Icons.Filled.Settings, Icons.Outlined.Settings, 3)
 )
 
-/**
- * Floating Action Button Navigation with expandable menu.
- * Auto-hides when scrolling and reappears when idle.
- * Strictly under 200 LOC limit.
- */
 @Composable
 fun FloatingNavFab(
     selectedTab: Int,
@@ -63,13 +56,20 @@ fun FloatingNavFab(
     }
 
     val rotationAngle by animateFloatAsState(
-        targetValue = if (isExpanded) 135f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "fabRotation"
+        targetValue = if (isExpanded) 90f else 0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "fabRot"
+    )
+
+    val fabSrc = remember { MutableInteractionSource() }
+    val isFabPressed by fabSrc.collectIsPressedAsState()
+    val fabScale by animateFloatAsState(
+        targetValue = if (isFabPressed) 0.92f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "fabPress"
     )
 
     Box(modifier = modifier) {
-        // Outside scrim to dismiss menu
         if (isExpanded) {
             Box(
                 modifier = Modifier
@@ -83,77 +83,83 @@ fun FloatingNavFab(
 
         AnimatedVisibility(
             visible = isVisible,
-            enter = slideInVertically(spring(stiffness = Spring.StiffnessMediumLow)) { it * 2 } + fadeIn(tween(220)),
-            exit = slideOutVertically(spring(stiffness = Spring.StiffnessMediumLow)) { it * 2 } + fadeOut(tween(220)),
+            enter = slideInVertically(spring(stiffness = Spring.StiffnessMedium)) { it * 2 } + fadeIn(tween(140)),
+            exit = slideOutVertically(spring(stiffness = Spring.StiffnessMedium)) { it * 2 } + fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomEnd)
         ) {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
                     .navigationBarsPadding()
                     .padding(end = 20.dp, bottom = 20.dp)
             ) {
-                // Expanded Menu Card
                 AnimatedVisibility(
                     visible = isExpanded,
-                    enter = fadeIn(tween(200)) + slideInVertically(spring(stiffness = Spring.StiffnessMediumLow)) { it / 3 },
-                    exit = fadeOut(tween(150)) + slideOutVertically(spring(stiffness = Spring.StiffnessMediumLow)) { it / 3 }
+                    enter = fadeIn(tween(120)) + scaleIn(spring(stiffness = Spring.StiffnessMedium), initialScale = 0.85f),
+                    exit = fadeOut(tween(100)) + scaleOut(spring(stiffness = Spring.StiffnessMedium), targetScale = 0.85f)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = Color(0xF2141519),
-                        shadowElevation = 12.dp,
+                        shadowElevation = 6.dp,
                         modifier = Modifier
-                            .width(190.dp)
-                            .border(1.dp, Brush.verticalGradient(listOf(Color(0x4DFF640A), Color(0x1AFFFFFF))), RoundedCornerShape(22.dp))
+                            .width(184.dp)
+                            .border(1.dp, Color(0xFF282930), RoundedCornerShape(16.dp))
                     ) {
                         Column(
-                            modifier = Modifier.padding(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.padding(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             NAV_FAB_TABS.forEach { tab ->
                                 val isSelected = tab.index == selectedTab
-                                val bgColor by animateColorAsState(if (isSelected) CrunchyrollOrange.copy(alpha = 0.16f) else Color.Transparent, label = "bg")
-                                val tintColor by animateColorAsState(if (isSelected) CrunchyrollOrange else TextMuted, label = "tint")
+                                val bgColor by animateColorAsState(if (isSelected) Color(0x26FF640A) else Color.Transparent, label = "tabBg")
+                                val tintColor by animateColorAsState(if (isSelected) CrunchyrollOrange else TextMuted, label = "tabTint")
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .clip(RoundedCornerShape(10.dp))
                                         .background(bgColor)
                                         .clickable { onTabSelected(tab.index); isExpanded = false }
-                                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(if (isSelected) tab.selectedIcon else tab.unselectedIcon, tab.title, tint = tintColor, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(tab.title, color = if (isSelected) CrunchyrollOrange else TextPrimary, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.weight(1f))
-                                    if (isSelected) Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(CrunchyrollOrange))
+                                    Icon(if (isSelected) tab.selectedIcon else tab.unselectedIcon, tab.title, tint = tintColor, modifier = Modifier.size(19.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        tab.title,
+                                        color = if (isSelected) CrunchyrollOrange else TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                // Main Floating Action Button
-                FloatingActionButton(
-                    onClick = { isExpanded = !isExpanded },
-                    containerColor = DarkOled,
-                    contentColor = CrunchyrollOrange,
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp, pressedElevation = 12.dp),
-                    shape = RoundedCornerShape(20.dp),
+                Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .border(1.5.dp, CrunchyrollOrange.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                        .shadow(10.dp, RoundedCornerShape(20.dp), spotColor = CrunchyrollOrange)
+                        .graphicsLayer { scaleX = fabScale; scaleY = fabScale }
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF16171D))
+                        .border(1.dp, if (isExpanded) CrunchyrollOrange else Color(0xFF2C2D35), RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = fabSrc,
+                            indication = null,
+                            onClick = { isExpanded = !isExpanded }
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     val currentTabObj = NAV_FAB_TABS.getOrNull(selectedTab) ?: NAV_FAB_TABS[0]
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.Close else currentTabObj.selectedIcon,
-                        contentDescription = "Menu Navigasi",
+                        contentDescription = "Navigasi",
                         tint = CrunchyrollOrange,
                         modifier = Modifier
-                            .size(26.dp)
+                            .size(24.dp)
                             .rotate(rotationAngle)
                     )
                 }

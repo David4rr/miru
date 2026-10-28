@@ -1,19 +1,8 @@
 package id.miru.app.ui.components.detail
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -27,8 +16,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,21 +42,24 @@ fun DetailHeroHeader(
     resumeEpisode: Int,
     isUpcoming: Boolean,
     onPlayClick: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    parallaxOffset: Float = 0f
 ) {
-    Box(modifier = modifier.fillMaxWidth().height(260.dp)) {
+    Box(modifier = modifier.fillMaxWidth().height(270.dp).clipToBounds()) {
         AsyncImage(
             model = anime.banner ?: anime.poster,
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationY = parallaxOffset }
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, DarkBackground.copy(alpha = 0.85f), DarkBackground),
+                        colors = listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f), DarkBackground),
                         startY = 60f
                     )
                 )
@@ -92,7 +86,7 @@ fun DetailHeroHeader(
                     imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     contentDescription = "Simpan",
                     tint = if (isBookmarked) CrunchyOrange else Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
@@ -102,13 +96,18 @@ fun DetailHeroHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (anime.score != null && anime.score > 0.0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Star, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(text = anime.displayScore, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
                 }
             }
-            Text(text = anime.displayStatus, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (anime.isNotYetReleased) Color(0xFFFFA726) else CrunchyOrange)
+            Text(
+                text = anime.displayStatus,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (anime.isNotYetReleased) Color(0xFFFFA726) else CrunchyOrange
+            )
             anime.seasonYear?.let { yr ->
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(text = yr.toString(), fontSize = 12.sp, color = TextMuted)
@@ -120,7 +119,11 @@ fun DetailHeroHeader(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             anime.displayGenres.forEach { g ->
                 Box(
-                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(DarkSurfaceVariant).padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DarkSurfaceVariant)
+                        .border(1.dp, Color(0xFF26262B), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(text = g, fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Medium)
                 }
@@ -131,10 +134,15 @@ fun DetailHeroHeader(
 
         if (isUpcoming) {
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFF2A2218)).padding(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF1E1A14))
+                    .border(1.dp, Color(0xFF382E1E), RoundedCornerShape(8.dp))
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFFFA726), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFFFA726), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(text = "Akan Datang (Belum Tayang)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFA726))
             }

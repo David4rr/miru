@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -94,7 +95,7 @@ fun MainApp() {
             }
         }
     }
-    LaunchedEffect(isFabVisible, lastScrollTime) { if (!isFabVisible) { delay(1200); isFabVisible = true } }
+    LaunchedEffect(isFabVisible, lastScrollTime) { if (!isFabVisible) { delay(600); isFabVisible = true } }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -143,7 +144,7 @@ fun MainApp() {
                             UpdateAvailableBottomSheet(release = rel, onDismissRequest = { showUpdateSheet = false })
                         }
                     }
-                    Column(modifier = Modifier.fillMaxSize().background(DarkOled)) {
+                    Column(modifier = Modifier.fillMaxSize().background(DarkOled).statusBarsPadding()) {
                         if (!isUpdateBannerDismissed) {
                             availableUpdate?.let { rel ->
                                 UpdateBanner(release = rel, onViewUpdateClick = { showUpdateSheet = true }, onDismissClick = { isUpdateBannerDismissed = true })

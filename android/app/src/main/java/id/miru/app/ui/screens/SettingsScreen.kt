@@ -86,7 +86,7 @@ fun SettingsScreen(
     }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize().background(DarkOled).statusBarsPadding().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxSize().background(DarkOled).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {

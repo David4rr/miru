@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.9"
+        "0.2.10"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,34 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.10",
+                versionName = "0.2.10",
+                title = "Miru Android v0.2.10 (Status Bar Insets, Parallax Backdrop, Morphing TopBar & Snappy Minimalism)",
+                body = """
+                    ### Miru Android v0.2.10
+
+                    #### 📐 Proteksi Status Bar & Inset Edge-to-Edge:
+                    - **Eliminasi Tumpang Tindih Status Bar (Status Bar Overlap Fix):** Menambahkan proteksi insets status bar yang menyeluruh pada kontainer navigasi utama dan seluruh tab (`HomeScreen`, `SearchScreen`, `LibraryScreen`, `SettingsScreen`), serta banner pembaruan, sehingga elemen UI tidak lagi tertutup atau menabrak indikator jam/baterai/sinyal Android.
+                    - **App Bar Melayang Adaptif di DetailScreen:** Menggantikan tombol back melayang tanpa pelindung dengan `DetailTopBar` yang meminjam status bar padding dan menampilkan scrim gradien serta latar obsidian solid saat digulir, melindungi status bar 100% dari teks atau kartu episode yang bergulir ke atas.
+
+                    #### 🎬 Animasi Parallax & Morfologi Dinamis (Parallax & Morphing Animation):
+                    - **Parallax Header Hero:** Banner anime di `DetailScreen` kini bertranslasi dengan efek kedalaman spasial halus (0.45x kecepatan scroll) dan viewport clipping (`clipToBounds()`), menghadirkan nuansa sinematik premium.
+                    - **Top App Bar Bermorfologi (Morphing TopBar):** Header hero bertransisi secara mulus menjadi top app bar minimalis yang terkunci di atas saat pengguna menggulir ke bawah, menampilkan judul anime, episode berjalan, dan tombol putar cepat mini yang bermorfologi ke dalam bar.
+
+                    #### ⚡ Tombol Aksi Responsif & Taktil (Snappy Action Button Micro-Interactions):
+                    - **Umpan Balik Tekanan Instan:** Menambahkan animasi pegas taktil instan (`scale(0.96f)` dengan `Spring.StiffnessMedium`) pada `OrangeButton` ("Lanjutkan Menonton" / "Mulai Menonton") dan tombol aksi lainnya tanpa latensi visual.
+                    - **Akselerasi FAB & Menu Navigasi:** Menaikkan kekakuan pegas (`stiffness`) `FloatingNavFab` dari 400 (`StiffnessMediumLow`) menjadi 1500 (`StiffnessMedium`) dan memangkas jeda sembunyi scroll dari 1200ms ke 600ms untuk pengalaman navigasi yang lincah dan cepat.
+
+                    #### ✨ Desain Minimalis Elegan & Anti-Slop (Minimalist Editorial Aesthetic):
+                    - **Pemusnahan Pola AI Slop:** Menghapus bayangan berpendar oranye (`spotColor`), garis tepi gradien neon yang berlebihan, dan titik status dekoratif tanpa fungsi.
+                    - **Desain Arsitektural Presisi:** Menerapkan garis tepi hairline 1px halus (`#26262B`), palet warm obsidian matte, dan tipografi berjarak bersih sesuai panduan `minimalist-ui`.
+                """.trimIndent(),
+                publishedAt = "2026-10-28",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.10/Miru-v0.2.10-release.apk",
+                apkSize = 22600000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.9",
                 versionName = "0.2.9",
