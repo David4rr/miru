@@ -114,6 +114,7 @@ struct ResolveParams {
     ep: i32,
     mode: Option<String>,
     mal_id: Option<i64>,
+    title: Option<String>,
 }
 
 async fn resolve_stream_handler(
@@ -121,7 +122,7 @@ async fn resolve_stream_handler(
     Query(params): Query<ResolveParams>,
 ) -> Response {
     let mode = params.mode.unwrap_or_else(|| "sub".to_string());
-    match api::stream::resolve_stream(&params.slug, params.ep, &mode, params.mal_id, &state.db).await {
+    match api::stream::resolve_stream(&params.slug, params.ep, &mode, params.mal_id, params.title.as_deref(), &state.db).await {
         Ok(stream) => Json(json!({ "success": true, "data": stream })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,

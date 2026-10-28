@@ -70,7 +70,7 @@ fun PlayerScreen(
         scope.launch {
             val resumeMs = fetchResumePositionMs(anime.slug, currentEpisode)
             prepareMediaStream(
-                slug = anime.slug, episode = currentEpisode, malId = anime.idMal, exoPlayer = exoPlayer,
+                slug = anime.slug, episode = currentEpisode, malId = anime.idMal, title = anime.title, exoPlayer = exoPlayer,
                 resumePositionMs = resumeMs,
                 onSuccess = { res -> resolvedStream = res; isLoadingStream = false; ping() },
                 onFailure = { err -> isLoadingStream = false; isBuffering = false; streamErrorMessage = err }

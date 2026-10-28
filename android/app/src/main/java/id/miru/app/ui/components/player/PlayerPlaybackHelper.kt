@@ -58,12 +58,13 @@ suspend fun prepareMediaStream(
     slug: String,
     episode: Int,
     malId: Long?,
+    title: String? = null,
     exoPlayer: ExoPlayer,
     resumePositionMs: Long? = null,
     onSuccess: (ResolvedStream) -> Unit,
     onFailure: (String) -> Unit
 ) {
-    ApiClient.resolveStream(slug, episode, "sub", malId)
+    ApiClient.resolveStream(slug, episode, "sub", malId, title)
         .onSuccess { res ->
             onSuccess(res)
             val mediaItemBuilder = MediaItem.Builder()

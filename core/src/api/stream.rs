@@ -1,4 +1,3 @@
-use crate::api::sub::fetch_aniskip_intervals;
 use crate::db::{CachedEpisode, Database, SkipInterval, SubtitleTrack};
 use anyhow::{anyhow, Result};
 use base64::prelude::*;
@@ -14,7 +13,7 @@ const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .user_agent(USER_AGENT)
-        .timeout(Duration::from_secs(12))
+        .timeout(Duration::from_secs(8))
         .build()
         .expect("Failed to initialize reqwest client")
 });
@@ -115,15 +114,6 @@ async fn fetch_zoko_by_mal(mal_id: i64, episode: i32, mode: &str) -> Result<(Str
 
     let (master_src, subs) = deobfuscate_zoko(&html)?;
 
-    // Fast verify upstream master M3U8 is live
-    let check_resp = HTTP_CLIENT
-        .get(&master_src)
-        .header("Referer", "https://zokoanime.video/")
-        .send()
-        .await?;
-    if !check_resp.status().is_success() {
-        return Err(anyhow!("Upstream stream returned HTTP {}", check_resp.status()));
-    }
 
     Ok((master_src, subs))
 }
@@ -192,15 +182,12 @@ async fn resolve_via_hianime_scraping(title: &str, episode: i32) -> Result<(Stri
     // Try ZokoAnime first if present, otherwise try other servers
     for embed_url in &embed_urls {
         if embed_url.contains("zokoanime") {
-            let html = HTTP_CLIENT
-                .get(embed_url)
-                .header("Referer", "https://hianime.at/")
-                .send()
-                .await?
-                .text()
-                .await?;
-            if let Ok((master, subs)) = deobfuscate_zoko(&html) {
-                return Ok((master, subs, "https://zokoanime.video/".to_string()));
+            if let Ok(resp) = HTTP_CLIENT.get(embed_url).header("Referer", "https://hianime.at/").send().await {
+                if let Ok(html) = resp.text().await {
+                    if let Ok((master, subs)) = deobfuscate_zoko(&html) {
+                        return Ok((master, subs, "https://zokoanime.video/".to_string()));
+                    }
+                }
             }
         }
     }
@@ -224,6 +211,7 @@ pub async fn resolve_stream(
     episode: i32,
     mode: &str,
     mal_id: Option<i64>,
+    title_hint: Option<&str>,
     db: &Database,
 ) -> Result<ResolvedStream> {
     // 1. Check local SQLite cache first (TTL 2 hours)
@@ -261,6 +249,11 @@ pub async fn resolve_stream(
         });
     }
 
+    let search_title = match title_hint {
+        Some(t) if !t.trim().is_empty() => t.trim().to_string(),
+        _ => clean_slug_to_title(slug),
+    };
+
     // 2. Resolve target MAL ID (from param or query AniList GraphQL using ID from slug)
     let target_mal_id = match mal_id {
         Some(m) if m > 0 => Some(m),
@@ -268,8 +261,7 @@ pub async fn resolve_stream(
             if let Some(al_id) = try_extract_anilist_id_from_slug(slug) {
                 crate::api::anilist::get_mal_id_by_anilist_id(al_id).await.unwrap_or(None)
             } else {
-                let title = clean_slug_to_title(slug);
-                crate::api::anilist::search_anime(&title, 1, 1, db).await.ok()
+                crate::api::anilist::search_anime(&search_title, 1, 1, db).await.ok()
                     .and_then(|cards| cards.into_iter().next())
                     .and_then(|c| c.id_mal)
             }
@@ -283,29 +275,20 @@ pub async fn resolve_stream(
                 Ok((master, subs)) => (master, subs, "https://zokoanime.video/".to_string()),
                 Err(_) => {
                     // Fallback to title search on HiAnime
-                    let title = clean_slug_to_title(slug);
-                    resolve_via_hianime_scraping(&title, episode).await?
+                    resolve_via_hianime_scraping(&search_title, episode).await?
                 }
             }
         }
         None => {
-            let title = clean_slug_to_title(slug);
-            resolve_via_hianime_scraping(&title, episode).await?
+            resolve_via_hianime_scraping(&search_title, episode).await?
         }
     };
 
-    // 4. Fetch AniSkip OP/ED intervals if MAL ID is available
-    let (intro, outro) = if let Some(m_id) = target_mal_id {
-        if let Ok(aniskip) = fetch_aniskip_intervals(m_id, episode, 0.0).await {
-            let op_interval = aniskip.op.map(|i| SkipInterval { start: i.start, end: i.end }).unwrap_or(SkipInterval { start: 0.0, end: 0.0 });
-            let ed_interval = aniskip.ed.map(|i| SkipInterval { start: i.start, end: i.end }).unwrap_or(SkipInterval { start: 0.0, end: 0.0 });
-            (op_interval, ed_interval)
-        } else {
-            (SkipInterval { start: 0.0, end: 0.0 }, SkipInterval { start: 0.0, end: 0.0 })
-        }
-    } else {
-        (SkipInterval { start: 0.0, end: 0.0 }, SkipInterval { start: 0.0, end: 0.0 })
-    };
+    // 4. Skip intervals (player skip HUD removed in v0.2.7)
+    let (intro, outro) = (
+        SkipInterval { start: 0.0, end: 0.0 },
+        SkipInterval { start: 0.0, end: 0.0 },
+    );
 
     // 5. Indonesian Subtitle Handling & Local Proxy Rewriting
     let has_indo = subtitles.iter().any(|s| {

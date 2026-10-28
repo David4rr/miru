@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.7"
+        "0.2.8"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,25 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.8",
+                versionName = "0.2.8",
+                title = "Miru Android v0.2.8 (Hotfix: 500 Stream Timeout, Redundant Probing & Failover Overhaul)",
+                body = """
+                    ### Miru Android v0.2.8
+
+                    #### ⚡ Perbaikan Streaming & Timeout (Streaming Engine & Timeout Fixes):
+                    - **Eliminasi Redundant Upstream M3U8 Probe:** Menghapus probe GET upstream ganda pada `master_src` di core Rust daemon yang sebelumnya memakan waktu 2–5 detik dan kerap memicu false-negative timeout.
+                    - **Pembersihan Pemblokir Jaringan AniSkip:** Menghapus panggilan sinkronis ke `api.aniskip.com` saat resolusi stream yang memperlambat pemuatan stream 2–4 detik.
+                    - **Penanganan Error HiAnime Lebih Tangguh:** Memperbaiki perulangan server scraping agar kegagalan salah satu server embed tidak langsung memutus proses, melainkan otomatis beralih ke server cermin berikutnya.
+                    - **Penerusan Petunjuk Judul Akurat (Title Hint):** Menambahkan parameter `title` pada `/api/stream/resolve` agar pencarian fallback HiAnime menggunakan nama asli anime, bukan ekstraksi slug yang terpotong.
+                    - **Penanganan Timeout & Error Informatif:** Memperpanjang batas waktu OkHttp Android dari 15s menjadi 35s untuk jaringan seluler, serta membaca detail JSON error dari daemon agar pengguna melihat pesan yang jelas alih-alih HTTP 500 generik.
+                """.trimIndent(),
+                publishedAt = "2026-10-28",
+                downloadUrl = "https://github.com/David4rr/tatap/releases/download/v0.2.8/Miru-v0.2.8-release.apk",
+                apkSize = 22600000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.7",
                 versionName = "0.2.7",

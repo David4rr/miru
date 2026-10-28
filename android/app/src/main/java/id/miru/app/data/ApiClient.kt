@@ -15,9 +15,9 @@ object ApiClient {
     private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(35, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
     suspend fun getHomeCatalog(): Result<HomeCatalog> = withContext(Dispatchers.IO) {
@@ -78,19 +78,24 @@ object ApiClient {
         slug: String,
         ep: Int,
         mode: String = "sub",
-        malId: Long? = null
+        malId: Long? = null,
+        title: String? = null
     ): Result<ResolvedStream> = withContext(Dispatchers.IO) {
         runCatching {
             val encodedSlug = java.net.URLEncoder.encode(slug, "UTF-8")
             val malQuery = if (malId != null && malId > 0) "&mal_id=$malId" else ""
+            val titleQuery = if (!title.isNullOrBlank()) "&title=${java.net.URLEncoder.encode(title, "UTF-8")}" else ""
             val request = Request.Builder()
-                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode$malQuery")
+                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode$malQuery$titleQuery")
                 .get()
                 .build()
 
             client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: ${resp.message}")
                 val bodyStr = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) {
+                    val detail = runCatching { JSONObject(bodyStr).optString("error") }.getOrNull()?.takeIf { it.isNotBlank() }
+                    throw Exception(detail ?: "HTTP ${resp.code}: ${resp.message}")
+                }
                 val json = JSONObject(bodyStr)
                 val data = json.getJSONObject("data")
 
