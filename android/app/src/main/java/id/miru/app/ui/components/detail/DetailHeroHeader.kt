@@ -38,7 +38,8 @@ fun DetailHeroHeader(
     isUpcoming: Boolean,
     onPlayClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    parallaxOffset: Float = 0f
+    parallaxOffset: Float = 0f,
+    isContinueWatch: Boolean = false
 ) {
     Box(modifier = modifier.fillMaxWidth().height(270.dp).clipToBounds()) {
         AsyncImage(
@@ -133,7 +134,7 @@ fun DetailHeroHeader(
             }
         } else {
             OrangeButton(
-                text = if (resumeEpisode > 1) "Lanjutkan Menonton (Episode $resumeEpisode)" else "Mulai Menonton (Episode 1)",
+                text = if (isContinueWatch || resumeEpisode > 1) "Lanjutkan Menonton (Episode $resumeEpisode)" else "Mulai Menonton (Episode 1)",
                 onClick = { onPlayClick(resumeEpisode) },
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             )

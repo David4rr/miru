@@ -58,7 +58,12 @@ fun DetailScreen(
         ApiClient.getAnimeEditions(currentAnime.id, currentAnime.slug).onSuccess { list ->
             editions = list
             if (currentAnime.id == 0L || currentAnime.episodes == null) {
-                list.firstOrNull { it.isCurrent }?.let { currentAnime = it.toAnimeCard() }
+                list.firstOrNull { it.isCurrent }?.let { ed ->
+                    currentAnime = ed.toAnimeCard()
+                    ApiClient.getHistory().onSuccess { hList ->
+                        watchedHistory = hList.firstOrNull { h -> h.slug == ed.slug }
+                    }
+                }
             }
         }
     }
@@ -74,7 +79,7 @@ fun DetailScreen(
         else -> lastWatchedEp.coerceIn(1, totalEpisodes.coerceAtLeast(1))
     }
     val currentProgress = if (isLastEpFinished) 0 else lastProgress
-
+    val isContinueWatch = watchedHistory != null && (resumeEpisode > 1 || currentProgress > 0)
     val rawSynopsis = currentAnime.cleanSynopsis ?: "Belum ada sinopsis resmi untuk anime ini."
     val currentSynopsis = if (showOriginalSynopsis) rawSynopsis else (translatedSynopsis ?: rawSynopsis)
 
@@ -117,7 +122,8 @@ fun DetailScreen(
                     resumeEpisode = resumeEpisode,
                     isUpcoming = currentAnime.isNotYetReleased,
                     onPlayClick = { ep -> onPlayEpisodeClick(currentAnime, ep) },
-                    parallaxOffset = parallaxOffset
+                    parallaxOffset = parallaxOffset,
+                    isContinueWatch = isContinueWatch
                 )
             }
 

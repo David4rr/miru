@@ -257,13 +257,24 @@ object ApiClient {
     }
 
 
-    suspend fun saveProgress(slug: String, episode: Int, progress: Int, duration: Int): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun saveProgress(
+        slug: String,
+        episode: Int,
+        progress: Int,
+        duration: Int,
+        title: String? = null,
+        poster: String? = null,
+        type: String? = null
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val json = JSONObject().apply {
                 put("slug", slug)
                 put("episode", episode)
                 put("progress", progress)
                 put("duration", duration)
+                title?.let { put("title", it) }
+                poster?.let { put("poster", it) }
+                type?.let { put("type", it) }
             }
             val request = Request.Builder()
                 .url("$BASE_URL/api/progress")

@@ -300,6 +300,10 @@ struct ProgressPayload {
     episode: i32,
     progress: i32,
     duration: Option<i32>,
+    title: Option<String>,
+    poster: Option<String>,
+    #[serde(rename = "type")]
+    anime_type: Option<String>,
 }
 
 async fn save_progress_handler(
@@ -307,7 +311,15 @@ async fn save_progress_handler(
     Json(payload): Json<ProgressPayload>,
 ) -> Response {
     let duration = payload.duration.unwrap_or(0);
-    match state.db.save_progress(&payload.slug, payload.episode, payload.progress, duration) {
+    match state.db.save_progress(
+        &payload.slug,
+        payload.episode,
+        payload.progress,
+        duration,
+        payload.title.as_deref(),
+        payload.poster.as_deref(),
+        payload.anime_type.as_deref(),
+    ) {
         Ok(_) => Json(json!({ "success": true })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,

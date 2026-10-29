@@ -1,5 +1,5 @@
 use parking_lot::Mutex;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
@@ -298,7 +298,7 @@ impl Database {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT id, slug, title, episode, mode, progress, poster, type, played_at 
-             FROM watch_history ORDER BY played_at DESC LIMIT ?1",
+             FROM watch_history ORDER BY played_at DESC, id DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit], |row| {
             Ok(WatchHistoryItem {
@@ -336,17 +336,57 @@ impl Database {
     // -------------------------------------------------------------
     // Watch Progress
     // -------------------------------------------------------------
-    pub fn save_progress(&self, slug: &str, episode: i32, progress: i32, duration: i32) -> Result<()> {
+    pub fn save_progress(
+        &self,
+        slug: &str,
+        episode: i32,
+        progress: i32,
+        duration: i32,
+        title: Option<&str>,
+        poster: Option<&str>,
+        anime_type: Option<&str>,
+    ) -> Result<()> {
         let conn = self.conn.lock();
         conn.execute(
             "INSERT OR REPLACE INTO watch_progress (slug, episode, progress, duration, updated_at)
              VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)",
             params![slug, episode, progress, duration],
         )?;
-        let _ = conn.execute(
-            "UPDATE watch_history SET progress = ?1, episode = ?2 WHERE slug = ?3",
+        let rows_updated = conn.execute(
+            "UPDATE watch_history SET progress = ?1, episode = ?2, played_at = CURRENT_TIMESTAMP WHERE slug = ?3",
             params![progress, episode, slug],
-        );
+        )?;
+        if rows_updated == 0 {
+            let bookmark: Option<(String, String, String)> = conn
+                .query_row(
+                    "SELECT title, poster, type FROM bookmarks WHERE slug = ?1",
+                    params![slug],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+
+            let (final_title, final_poster, final_type) = if let Some((b_title, b_poster, b_type)) = bookmark {
+                (
+                    title.unwrap_or(&b_title).to_string(),
+                    poster.unwrap_or(&b_poster).to_string(),
+                    anime_type.unwrap_or(&b_type).to_string(),
+                )
+            } else {
+                (
+                    title.unwrap_or("").to_string(),
+                    poster.unwrap_or("").to_string(),
+                    anime_type.unwrap_or("ANIME").to_string(),
+                )
+            };
+
+            if !final_title.is_empty() || !final_poster.is_empty() {
+                let _ = conn.execute(
+                    "INSERT INTO watch_history (slug, title, episode, mode, progress, poster, type, played_at)
+                     VALUES (?1, ?2, ?3, 'sub', ?4, ?5, ?6, CURRENT_TIMESTAMP)",
+                    params![slug, final_title, episode, progress, final_poster, final_type],
+                );
+            }
+        }
         Ok(())
     }
 

@@ -65,12 +65,16 @@ fun LibraryScreen(
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    fun refreshData() {
         scope.launch {
             ApiClient.getBookmarks().onSuccess { bookmarks = it }
             ApiClient.getHistory().onSuccess { history = it }
             isLoading = false
         }
+    }
+
+    LaunchedEffect(selectedTab) {
+        refreshData()
     }
 
     Column(

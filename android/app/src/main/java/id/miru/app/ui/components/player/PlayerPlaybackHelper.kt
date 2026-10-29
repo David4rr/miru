@@ -31,13 +31,30 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-fun saveWatchProgressAsync(slug: String, episode: Int, currentPosition: Long, duration: Long, explicitProgress: Int? = null) {
+fun saveWatchProgressAsync(
+    slug: String,
+    episode: Int,
+    currentPosition: Long,
+    duration: Long,
+    explicitProgress: Int? = null,
+    title: String? = null,
+    poster: String? = null,
+    type: String? = null
+) {
     val dur = duration.coerceAtLeast(1L)
     val curPos = currentPosition.coerceAtLeast(0L)
     val progressPercent = explicitProgress ?: ((curPos * 100) / dur).toInt().coerceIn(0, 100)
     CoroutineScope(Dispatchers.IO).launch {
         withContext(NonCancellable) {
-            ApiClient.saveProgress(slug = slug, episode = episode, progress = progressPercent, duration = (dur / 1000).toInt())
+            ApiClient.saveProgress(
+                slug = slug,
+                episode = episode,
+                progress = progressPercent,
+                duration = (dur / 1000).toInt(),
+                title = title,
+                poster = poster,
+                type = type
+            )
         }
     }
 }

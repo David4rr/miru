@@ -22,6 +22,7 @@ import androidx.media3.common.PlaybackParameters
 import id.miru.app.data.ApiClient
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.ResolvedStream
+import id.miru.app.data.WatchHistoryItem
 import id.miru.app.ui.components.player.PlayerControlsOverlay
 import id.miru.app.ui.components.player.PlayerEpisodeSheet
 import id.miru.app.ui.components.player.PlayerGestureOverlay
@@ -33,9 +34,9 @@ import id.miru.app.ui.components.player.prepareMediaStream
 import id.miru.app.ui.components.player.rememberExoPlayerWithLifecycle
 import id.miru.app.ui.components.player.saveWatchProgressAsync
 import id.miru.app.ui.theme.DarkBackground
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
 @Composable
 fun PlayerScreen(
     anime: AnimeCard,
@@ -62,9 +63,17 @@ fun PlayerScreen(
         }
     }
     val totalEpisodes = animeMetadata.actualEpisodeCount.coerceAtLeast(currentEpisode)
+    val effectiveSlug = if (anime.slug.isNotBlank()) anime.slug else animeMetadata.slug
+    val effectiveTitle = animeMetadata.title.ifBlank { anime.title }
+    val effectivePoster = animeMetadata.poster.ifBlank { anime.poster }
+    val effectiveType = animeMetadata.status ?: anime.status ?: "ANIME"
 
     fun ping() { lastInteraction = System.currentTimeMillis(); areControlsVisible = true }
-    fun saveProgress(explicit: Int? = null) = saveWatchProgressAsync(anime.slug, currentEpisode, currentPosition, duration, explicit)
+    fun saveProgress(explicit: Int? = null) = saveWatchProgressAsync(
+        slug = effectiveSlug, episode = currentEpisode, currentPosition = currentPosition,
+        duration = duration, explicitProgress = explicit, title = effectiveTitle,
+        poster = effectivePoster, type = effectiveType
+    )
 
     val exoPlayer = rememberExoPlayerWithLifecycle(
         context = context, activity = context as? Activity, window = (context as? Activity)?.window,
@@ -77,12 +86,22 @@ fun PlayerScreen(
     fun loadStream() {
         isLoadingStream = true; isBuffering = true; streamErrorMessage = null
         scope.launch {
-            val resumeMs = fetchResumePositionMs(anime.slug, currentEpisode)
+            val resumeMs = fetchResumePositionMs(effectiveSlug, currentEpisode)
             prepareMediaStream(
-                slug = animeMetadata.slug, episode = currentEpisode, malId = animeMetadata.idMal ?: anime.idMal,
-                title = animeMetadata.title.ifBlank { anime.title }, exoPlayer = exoPlayer,
-                resumePositionMs = resumeMs,
-                onSuccess = { res -> resolvedStream = res; isLoadingStream = false; ping() },
+                slug = effectiveSlug, episode = currentEpisode, malId = animeMetadata.idMal ?: anime.idMal,
+                title = effectiveTitle, exoPlayer = exoPlayer, resumePositionMs = resumeMs,
+                onSuccess = { res ->
+                    resolvedStream = res; isLoadingStream = false; ping()
+                    scope.launch(Dispatchers.IO) {
+                        val initProgress = if (resumeMs != null && duration > 0) ((resumeMs * 100) / duration).toInt().coerceIn(0, 100) else 0
+                        ApiClient.addHistory(
+                            WatchHistoryItem(
+                                slug = effectiveSlug, title = effectiveTitle, episode = currentEpisode,
+                                progress = initProgress, poster = effectivePoster, type = effectiveType
+                            )
+                        )
+                    }
+                },
                 onFailure = { err -> isLoadingStream = false; isBuffering = false; streamErrorMessage = err }
             )
         }
