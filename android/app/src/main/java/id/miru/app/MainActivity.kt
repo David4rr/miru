@@ -23,7 +23,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
@@ -36,17 +35,9 @@ import androidx.compose.ui.Modifier
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.AppRelease
 import id.miru.app.data.UpdateManager
-import id.miru.app.ui.components.UpdateAvailableBottomSheet
-import id.miru.app.ui.components.UpdateBanner
-import id.miru.app.ui.components.FloatingNavFab
-import id.miru.app.ui.screens.DetailScreen
-import id.miru.app.ui.screens.HomeScreen
-import id.miru.app.ui.screens.LibraryScreen
-import id.miru.app.ui.screens.PlayerScreen
-import id.miru.app.ui.screens.SearchScreen
-import id.miru.app.ui.screens.ScheduleScreen
-import id.miru.app.ui.screens.SettingsScreen
-import id.miru.app.ui.screens.SplashScreen
+import id.miru.app.ui.components.*
+import android.widget.Toast
+import id.miru.app.ui.screens.*
 import id.miru.app.ui.theme.DarkOled
 import id.miru.app.ui.theme.MiruTheme
 class MainActivity : ComponentActivity() {
@@ -107,7 +98,9 @@ fun MainApp() {
         showScheduleScreen -> 1
         else -> 0
     }
-    LaunchedEffect(screenMode) {
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(screenMode, selectedTab) {
+        lastBackPressTime = 0L
         if (screenMode != 3) {
             (context as? Activity)?.let { act ->
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -116,7 +109,15 @@ fun MainApp() {
             }
         }
     }
-
+    BackHandler(enabled = screenMode == 0) {
+        val now = System.currentTimeMillis()
+        if (lastBackPressTime != 0L && now - lastBackPressTime < 2000L) {
+            (context as? Activity)?.finish()
+        } else {
+            lastBackPressTime = now
+            Toast.makeText(context, "Tekan sekali lagi untuk keluar", Toast.LENGTH_SHORT).show()
+        }
+    }
     AnimatedContent(
         targetState = screenMode,
         transitionSpec = {

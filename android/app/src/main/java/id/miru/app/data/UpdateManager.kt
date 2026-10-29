@@ -218,6 +218,31 @@ object UpdateManager {
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
             AppRelease(
+                tagName = "v0.2.13",
+                versionName = "0.2.13",
+                title = "Miru Android v0.2.13 (Bookmark History Sync, In-Progress Resume CTA & Double-Back Exit)",
+                body = """
+                    ### Miru Android v0.2.13
+
+                    #### 🔖 Sinkronisasi Riwayat Tontonan dari Bookmark:
+                    - **Pencatatan Otomatis saat Memutar Bookmark:** Menyambungkan pemanggilan `ApiClient.addHistory` saat stream siap diputar pada `PlayerScreen`, menjamin anime yang ditonton dari bookmark langsung masuk ke Riwayat Tontonan.
+                    - **Ketahanan Database & Metadata Fallback:** Mengoptimalkan `save_progress` di Rust core daemon (`core/src/db.rs`) dengan pembaruan otomatis timestamp `played_at = CURRENT_TIMESTAMP`, lookup metadata ke tabel `bookmarks`, serta dukungan metadata judul, poster, dan tipe anime.
+                    - **Sortir Riwayat Deterministik:** Menambahkan tie-breaker `id DESC` pada query `get_history` untuk memecah timestamp yang identik dalam detik yang sama.
+
+                    #### 🎬 Peningkatan Tombol Lanjutkan Menonton (CTA Resume):
+                    - **Deteksi Progres Episode 1:** Mengubah logika tombol utama di `DetailHeroHeader` dan `DetailScreen` agar menampilkan "Lanjutkan Menonton (Episode 1)" saat episode 1 sedang dalam progres (> 0%), bukan hanya untuk episode > 1.
+                    - **Pembaruan Instan Tab Library:** Menambahkan auto-refresh saat berpindah tab antara Bookmark dan Riwayat pada `LibraryScreen` agar riwayat tontonan langsung terupdate secara real-time.
+
+                    #### 🛡️ Proteksi Keluar Aplikasi (Double-Back Press):
+                    - **Konfirmasi Dua Kali Tekan:** Mencegah aplikasi tertutup tanpa sengaja dengan mewajibkan dua kali penekanan tombol back dalam kurun waktu 2 detik disertai notifikasi Toast ("Tekan sekali lagi untuk keluar").
+                    - **Reset Otomatis Timer:** Timer tombol back otomatis di-reset saat pengguna berpindah tab atau berpindah layar (detail, player, jadwal).
+                """.trimIndent(),
+                publishedAt = "2026-10-29",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.13/Miru-v0.2.13-release.apk",
+                apkSize = 22700000L,
+                isNewer = false
+            ),
+            AppRelease(
                 tagName = "v0.2.12",
                 versionName = "0.2.12",
                 title = "Miru Android v0.2.12 (Japanese Kanji Identity & Ultra-Smooth Parallax Fix)",
