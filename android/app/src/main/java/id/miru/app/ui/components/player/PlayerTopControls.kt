@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -37,6 +38,8 @@ fun PlayerTopControls(
     title: String,
     episode: Int,
     isScreenLocked: Boolean,
+    isSubtitleActive: Boolean = true,
+    onOpenSubtitleSheet: () -> Unit,
     onToggleLock: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -64,6 +67,24 @@ fun PlayerTopControls(
             Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(text = "Episode $episode", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
+
+        // Subtitle Selector Button
+        IconButton(
+            onClick = onOpenSubtitleSheet,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(if (isSubtitleActive) CrunchyOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.4f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.Subtitles,
+                contentDescription = "Pilih Subtitle",
+                tint = if (isSubtitleActive) CrunchyOrange else Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
 
         // Screen Lock Button
         IconButton(

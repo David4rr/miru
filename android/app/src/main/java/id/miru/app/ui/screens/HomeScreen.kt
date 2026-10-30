@@ -60,14 +60,15 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val parallaxOffset by remember {
-        derivedStateOf {
-            val heroItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == 1 }
+    val parallaxOffsetProvider: () -> Float = remember {
+        {
+            val visible = listState.layoutInfo.visibleItemsInfo
+            val heroItem = visible.firstOrNull { it.index == 1 }
             if (heroItem != null) {
-                val scrolledOff = (-heroItem.offset).coerceAtLeast(0)
-                (scrolledOff * 0.35f).coerceAtMost(100f)
+                val headerHeight = visible.firstOrNull { it.index == 0 }?.size ?: 140
+                (headerHeight - heroItem.offset).coerceAtLeast(0).toFloat()
             } else if (listState.firstVisibleItemIndex > 1) {
-                100f
+                1000f
             } else {
                 0f
             }
@@ -161,7 +162,7 @@ fun HomeScreen(
                                 onAnimeClick = onAnimeClick,
                                 onContinueWatchClick = onContinueWatchClick,
                                 onScheduleClick = onScheduleClick,
-                                parallaxOffset = parallaxOffset,
+                                parallaxOffsetProvider = parallaxOffsetProvider,
                                 recommendation = recommendation
                             )
                         }

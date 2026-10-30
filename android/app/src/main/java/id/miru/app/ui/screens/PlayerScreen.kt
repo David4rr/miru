@@ -22,17 +22,9 @@ import androidx.media3.common.PlaybackParameters
 import id.miru.app.data.ApiClient
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.ResolvedStream
+import id.miru.app.data.SubtitleTrack
 import id.miru.app.data.WatchHistoryItem
-import id.miru.app.ui.components.player.PlayerControlsOverlay
-import id.miru.app.ui.components.player.PlayerEpisodeSheet
-import id.miru.app.ui.components.player.PlayerGestureOverlay
-import id.miru.app.ui.components.player.PlayerLockOverlay
-import id.miru.app.ui.components.player.PlayerVideoSurface
-import id.miru.app.ui.components.player.cycleNextSpeed
-import id.miru.app.ui.components.player.fetchResumePositionMs
-import id.miru.app.ui.components.player.prepareMediaStream
-import id.miru.app.ui.components.player.rememberExoPlayerWithLifecycle
-import id.miru.app.ui.components.player.saveWatchProgressAsync
+import id.miru.app.ui.components.player.*
 import id.miru.app.ui.theme.DarkBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -53,6 +45,7 @@ fun PlayerScreen(
     var areControlsVisible by remember { mutableStateOf(true) }; var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isScreenLocked by remember { mutableStateOf(false) }; var showUnlockButton by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }; var showEpisodeSheet by remember { mutableStateOf(false) }
+    var showSubtitleSheet by remember { mutableStateOf(false) }; var activeSubtitle by remember { mutableStateOf<SubtitleTrack?>(null) }
     var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }; var seekRippleSide by remember { mutableStateOf<String?>(null) }
     var animeMetadata by remember(anime.slug) { mutableStateOf(anime) }
     LaunchedEffect(anime.slug) {
@@ -92,6 +85,7 @@ fun PlayerScreen(
                 title = effectiveTitle, exoPlayer = exoPlayer, resumePositionMs = resumeMs,
                 onSuccess = { res ->
                     resolvedStream = res; isLoadingStream = false; ping()
+                    activeSubtitle = res.subtitles.firstOrNull { it.default } ?: res.subtitles.firstOrNull()
                     scope.launch(Dispatchers.IO) {
                         val initProgress = if (resumeMs != null && duration > 0) ((resumeMs * 100) / duration).toInt().coerceIn(0, 100) else 0
                         ApiClient.addHistory(
@@ -165,12 +159,25 @@ fun PlayerScreen(
                     exoPlayer.playbackParameters = PlaybackParameters(playbackSpeed)
                     ping()
                 },
+                isSubtitleActive = activeSubtitle != null,
+                onOpenSubtitleSheet = { showSubtitleSheet = true },
                 onOpenEpisodeSheet = { showEpisodeSheet = true }, onBackgroundClick = { areControlsVisible = false }
             )
         }
 
         if (showEpisodeSheet) {
             PlayerEpisodeSheet(totalEpisodes = totalEpisodes, currentEpisode = currentEpisode, onSelectEpisode = { ep -> currentEpisode = ep }, onDismissRequest = { showEpisodeSheet = false })
+        }
+        if (showSubtitleSheet) {
+            PlayerSubtitleSheet(
+                subtitles = resolvedStream?.subtitles ?: emptyList(),
+                selectedSubtitle = activeSubtitle,
+                onSelectSubtitle = { sub ->
+                    activeSubtitle = sub
+                    resolvedStream?.let { res -> switchSubtitleTrack(exoPlayer, res, sub) }
+                },
+                onDismissRequest = { showSubtitleSheet = false }
+            )
         }
     }
 }

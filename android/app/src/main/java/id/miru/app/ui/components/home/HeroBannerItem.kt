@@ -52,8 +52,10 @@ fun HeroBannerItem(
     onItemClick: (AnimeCard) -> Unit,
     onWatchClick: (AnimeCard) -> Unit,
     modifier: Modifier = Modifier,
-    parallaxOffset: Float = 0f
+    parallaxOffset: Float = 0f,
+    parallaxOffsetProvider: (() -> Float)? = null
 ) {
+    val offsetProvider = parallaxOffsetProvider ?: { parallaxOffset }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -68,9 +70,9 @@ fun HeroBannerItem(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    scaleX = 1.15f
-                    scaleY = 1.15f
-                    translationY = parallaxOffset * 0.5f
+                    scaleX = 1.20f
+                    scaleY = 1.20f
+                    translationY = (offsetProvider() * 0.40f).coerceIn(0f, 150f)
                 }
         )
 

@@ -25,6 +25,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import id.miru.app.data.ApiClient
 import id.miru.app.data.ResolvedStream
+import id.miru.app.data.SubtitleTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -32,14 +33,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 fun saveWatchProgressAsync(
-    slug: String,
-    episode: Int,
-    currentPosition: Long,
-    duration: Long,
-    explicitProgress: Int? = null,
-    title: String? = null,
-    poster: String? = null,
-    type: String? = null
+    slug: String, episode: Int, currentPosition: Long, duration: Long,
+    explicitProgress: Int? = null, title: String? = null, poster: String? = null, type: String? = null
 ) {
     val dur = duration.coerceAtLeast(1L)
     val curPos = currentPosition.coerceAtLeast(0L)
@@ -47,13 +42,8 @@ fun saveWatchProgressAsync(
     CoroutineScope(Dispatchers.IO).launch {
         withContext(NonCancellable) {
             ApiClient.saveProgress(
-                slug = slug,
-                episode = episode,
-                progress = progressPercent,
-                duration = (dur / 1000).toInt(),
-                title = title,
-                poster = poster,
-                type = type
+                slug = slug, episode = episode, progress = progressPercent,
+                duration = (dur / 1000).toInt(), title = title, poster = poster, type = type
             )
         }
     }
@@ -72,14 +62,9 @@ fun cycleNextSpeed(current: Float): Float {
 
 
 suspend fun prepareMediaStream(
-    slug: String,
-    episode: Int,
-    malId: Long?,
-    title: String? = null,
-    exoPlayer: ExoPlayer,
-    resumePositionMs: Long? = null,
-    onSuccess: (ResolvedStream) -> Unit,
-    onFailure: (String) -> Unit
+    slug: String, episode: Int, malId: Long?, title: String? = null,
+    exoPlayer: ExoPlayer, resumePositionMs: Long? = null,
+    onSuccess: (ResolvedStream) -> Unit, onFailure: (String) -> Unit
 ) {
     ApiClient.resolveStream(slug, episode, "sub", malId, title)
         .onSuccess { res ->
@@ -110,6 +95,33 @@ suspend fun prepareMediaStream(
         }
 }
 
+fun switchSubtitleTrack(
+    exoPlayer: ExoPlayer,
+    resolvedStream: ResolvedStream,
+    selectedSub: SubtitleTrack?
+) {
+    val currentPosition = exoPlayer.currentPosition
+    val isPlaying = exoPlayer.isPlaying
+    val mediaItemBuilder = MediaItem.Builder()
+        .setUri(resolvedStream.proxiedMasterUrl)
+        .setMimeType(MimeTypes.APPLICATION_M3U8)
+
+    if (selectedSub != null && selectedSub.url.isNotBlank()) {
+        val subConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(selectedSub.url))
+            .setMimeType(MimeTypes.TEXT_VTT)
+            .setLanguage(selectedSub.lang)
+            .setLabel(selectedSub.label)
+            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+            .build()
+        mediaItemBuilder.setSubtitleConfigurations(listOf(subConfig))
+    }
+
+    exoPlayer.setMediaItem(mediaItemBuilder.build(), currentPosition)
+    if (isPlaying) {
+        exoPlayer.play()
+    }
+}
+
 @OptIn(UnstableApi::class)
 @Composable
 fun rememberExoPlayerWithLifecycle(
@@ -125,7 +137,9 @@ fun rememberExoPlayerWithLifecycle(
     val lifecycleOwner = LocalLifecycleOwner.current
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(15_000, 50_000, 1_500, 3_000)
+            .setBufferDurationsMs(10_000, 40_000, 1_000, 2_500)
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .setBackBuffer(10_000, true)
             .build()
         ExoPlayer.Builder(context).setLoadControl(loadControl).build().apply { playWhenReady = true }
     }

@@ -20,6 +20,8 @@ fun PlayerControlsOverlay(
     isVisible: Boolean,
     title: String,
     episode: Int,
+    isSubtitleActive: Boolean = true,
+    onOpenSubtitleSheet: () -> Unit,
     onToggleLock: () -> Unit,
     onBackClick: () -> Unit,
     isPlaying: Boolean,
@@ -75,6 +77,8 @@ fun PlayerControlsOverlay(
                     title = title,
                     episode = episode,
                     isScreenLocked = false,
+                    isSubtitleActive = isSubtitleActive,
+                    onOpenSubtitleSheet = onOpenSubtitleSheet,
                     onToggleLock = onToggleLock,
                     onBackClick = onBackClick
                 )

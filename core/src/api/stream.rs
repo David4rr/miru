@@ -55,6 +55,55 @@ pub fn try_extract_anilist_id_from_slug(slug: &str) -> Option<i64> {
     None
 }
 
+fn normalize_sub_lang(label: &str, raw_lang: &str) -> String {
+    let lb = label.to_lowercase();
+    if lb.contains("indonesia") {
+        "id".to_string()
+    } else if lb.contains("english") {
+        "en".to_string()
+    } else if lb.contains("arabic") || lb.contains("العربية") {
+        "ar".to_string()
+    } else if lb.contains("spanish") || lb.contains("español") || lb.contains("espanol") {
+        "es".to_string()
+    } else if lb.contains("portuguese") || lb.contains("português") || lb.contains("portugues") {
+        "pt".to_string()
+    } else if lb.contains("french") || lb.contains("français") || lb.contains("francais") {
+        "fr".to_string()
+    } else if lb.contains("german") || lb.contains("deutsch") {
+        "de".to_string()
+    } else if lb.contains("italian") || lb.contains("italiano") {
+        "it".to_string()
+    } else if lb.contains("russian") || lb.contains("русский") {
+        "ru".to_string()
+    } else if lb.contains("japanese") || lb.contains("日本語") {
+        "ja".to_string()
+    } else if lb.contains("chinese") || lb.contains("中文") {
+        "zh".to_string()
+    } else if lb.contains("vietnamese") || lb.contains("tiếng việt") {
+        "vi".to_string()
+    } else if lb.contains("thai") || lb.contains("ไทย") {
+        "th".to_string()
+    } else {
+        raw_lang.to_string()
+    }
+}
+
+fn sort_subtitles(subs: &mut [SubtitleTrack]) {
+    subs.sort_by(|a, b| {
+        let a_id = a.lang == "id" || a.label.to_lowercase().contains("indonesia");
+        let b_id = b.lang == "id" || b.label.to_lowercase().contains("indonesia");
+        if a_id != b_id {
+            return b_id.cmp(&a_id);
+        }
+        let a_en = a.lang == "en" || a.label.to_lowercase().contains("english");
+        let b_en = b.lang == "en" || b.label.to_lowercase().contains("english");
+        if a_en != b_en {
+            return b_en.cmp(&a_en);
+        }
+        a.label.cmp(&b.label)
+    });
+}
+
 fn deobfuscate_zoko(html: &str) -> Result<(String, Vec<SubtitleTrack>)> {
     let re_p = regex::Regex::new(r#"window\.__P="([^"]+)""#)?;
     let blob = re_p
@@ -84,11 +133,12 @@ fn deobfuscate_zoko(html: &str) -> Result<(String, Vec<SubtitleTrack>)> {
     if let Some(subs_arr) = json_val.get("subtitles").and_then(|s| s.as_array()) {
         for s in subs_arr {
             let label = s.get("label").and_then(|l| l.as_str()).unwrap_or("English").to_string();
-            let lang = s.get("lang").and_then(|l| l.as_str()).unwrap_or("en").to_string();
+            let raw_lang = s.get("lang").and_then(|l| l.as_str()).unwrap_or("en").to_string();
             let src = s.get("src").and_then(|f| f.as_str()).unwrap_or("").to_string();
             let is_default = s.get("default").and_then(|d| d.as_bool()).unwrap_or(false);
 
             if !src.is_empty() {
+                let lang = normalize_sub_lang(&label, &raw_lang);
                 subtitles.push(SubtitleTrack {
                     label,
                     lang,
@@ -222,9 +272,10 @@ pub async fn resolve_stream(
             urlencoding::encode(&cached.referer)
         );
 
-        let proxied_subtitles = cached.subtitles.into_iter().map(|mut s| {
+        let mut proxied_subtitles: Vec<SubtitleTrack> = cached.subtitles.into_iter().map(|mut s| {
+            s.lang = normalize_sub_lang(&s.label, &s.lang);
             if !s.url.starts_with("http://127.0.0.1:8767") {
-                let is_id = s.lang == "id" || s.label.contains("Indonesia");
+                let is_id = s.lang == "id" || s.label.to_lowercase().contains("indonesia");
                 let sub_mode = if is_id { "gtx+" } else { "raw" };
                 s.url = format!(
                     "http://127.0.0.1:8767/api/player/sub?url={}&mode={}",
@@ -234,6 +285,43 @@ pub async fn resolve_stream(
             }
             s
         }).collect();
+
+        let has_indo_cached = proxied_subtitles.iter().any(|s| s.lang == "id" || s.label.to_lowercase().contains("indonesia"));
+        if !has_indo_cached {
+            let candidate = proxied_subtitles.iter().find(|s| {
+                let lb = s.label.to_lowercase();
+                let l = s.lang.to_lowercase();
+                (lb.contains("english") || l == "en")
+                    && !lb.contains("arabic")
+                    && !lb.contains("french")
+                    && !lb.contains("german")
+                    && !lb.contains("spanish")
+                    && !lb.contains("portuguese")
+                    && !lb.contains("russian")
+                    && !lb.contains("italian")
+            }).or_else(|| proxied_subtitles.first()).cloned();
+
+            if let Some(src_sub) = candidate {
+                let trans_url = format!("http://127.0.0.1:8767/api/player/sub?url={}&mode=gtx+", urlencoding::encode(&src_sub.url));
+                proxied_subtitles.insert(0, SubtitleTrack {
+                    label: "Indonesia (Otomatis)".to_string(),
+                    lang: "id".to_string(),
+                    url: trans_url,
+                    default: true,
+                });
+                let prewarm_url = src_sub.url.clone();
+                let db_clone = db.clone();
+                tokio::spawn(async move {
+                    let _ = crate::api::sub::get_or_translate_vtt(&prewarm_url, "gtx+", &db_clone).await;
+                });
+            }
+        }
+        let mut def_found = false;
+        for s in &mut proxied_subtitles {
+            let is_id = s.lang == "id" || s.label.to_lowercase().contains("indonesia");
+            if is_id && !def_found { s.default = true; def_found = true; } else { s.default = false; }
+        }
+        sort_subtitles(&mut proxied_subtitles);
 
         return Ok(ResolvedStream {
             slug: cached.slug,
@@ -291,6 +379,10 @@ pub async fn resolve_stream(
     );
 
     // 5. Indonesian Subtitle Handling & Local Proxy Rewriting
+    for s in &mut subtitles {
+        s.lang = normalize_sub_lang(&s.label, &s.lang);
+    }
+
     let has_indo = subtitles.iter().any(|s| {
         let l = s.lang.to_lowercase();
         let lb = s.label.to_lowercase();
@@ -298,16 +390,25 @@ pub async fn resolve_stream(
     });
 
     if !has_indo {
-        // If English subtitle exists, add auto-translated Indonesian subtitle track
-        if let Some(eng_sub) = subtitles.iter().find(|s| {
-            let l = s.lang.to_lowercase();
+        // Preferred source for Indonesian translation: true English subtitle
+        let candidate_sub = subtitles.iter().find(|s| {
             let lb = s.label.to_lowercase();
-            l == "en" || lb.contains("english")
-        }) {
-            let raw_eng_url = eng_sub.url.clone();
+            let l = s.lang.to_lowercase();
+            (lb.contains("english") || l == "en")
+                && !lb.contains("arabic")
+                && !lb.contains("french")
+                && !lb.contains("german")
+                && !lb.contains("spanish")
+                && !lb.contains("portuguese")
+                && !lb.contains("russian")
+                && !lb.contains("italian")
+        }).or_else(|| subtitles.first());
+
+        if let Some(src_sub) = candidate_sub {
+            let raw_url = src_sub.url.clone();
             let translated_url = format!(
                 "http://127.0.0.1:8767/api/player/sub?url={}&mode=gtx+",
-                urlencoding::encode(&raw_eng_url)
+                urlencoding::encode(&raw_url)
             );
             subtitles.insert(0, SubtitleTrack {
                 label: "Indonesia (Otomatis)".to_string(),
@@ -315,15 +416,26 @@ pub async fn resolve_stream(
                 url: translated_url,
                 default: true,
             });
+            let prewarm_url = raw_url.clone();
+            let db_clone = db.clone();
+            tokio::spawn(async move {
+                let _ = crate::api::sub::get_or_translate_vtt(&prewarm_url, "gtx+", &db_clone).await;
+            });
         }
     }
 
     // Ensure EVERY subtitle URL points to the local daemon proxy on 127.0.0.1:8767
+    let mut found_default = false;
     for s in &mut subtitles {
         let l = s.lang.to_lowercase();
         let lb = s.label.to_lowercase();
         let is_id = l == "id" || l == "ind" || lb.contains("indonesia");
-        s.default = is_id;
+        if is_id && !found_default {
+            s.default = true;
+            found_default = true;
+        } else {
+            s.default = false;
+        }
 
         if !s.url.starts_with("http://127.0.0.1:8767") {
             let sub_mode = if is_id { "gtx+" } else { "raw" };
@@ -334,6 +446,7 @@ pub async fn resolve_stream(
             );
         }
     }
+    sort_subtitles(&mut subtitles);
 
     // 6. Cache into SQLite
     let cached = CachedEpisode {

@@ -25,6 +25,7 @@ fun LazyListScope.homeCatalogSwimlanes(
     onContinueWatchClick: (WatchHistoryItem) -> Unit,
     onScheduleClick: () -> Unit,
     parallaxOffset: Float = 0f,
+    parallaxOffsetProvider: (() -> Float)? = null,
     recommendation: RecommendationResult? = null
 ) {
     if (catalog.hero.isNotEmpty()) {
@@ -33,7 +34,8 @@ fun LazyListScope.homeCatalogSwimlanes(
                 items = catalog.hero,
                 onItemClick = onAnimeClick,
                 onWatchClick = onAnimeClick,
-                parallaxOffset = parallaxOffset
+                parallaxOffset = parallaxOffset,
+                parallaxOffsetProvider = parallaxOffsetProvider
             )
         }
     }

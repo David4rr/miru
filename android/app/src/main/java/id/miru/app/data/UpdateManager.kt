@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.12"
+        "0.2.14"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,37 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.14",
+                versionName = "0.2.14",
+                title = "Miru Android v0.2.14 (Arabic Subtitle Fix, Player Subtitle Selector, 5x Stream Loading & 120Hz Parallax)",
+                body = """
+                    ### Miru Android v0.2.14
+
+                    #### 🌐 Perbaikan Subtitle Arab & Pemilih Trek Takarir (Subtitle Selector):
+                    - **Normalisasi Kode Bahasa (`normalize_sub_lang`):** Memperbaiki kesalahan deteksi takarir pada anime seperti Jujutsu Kaisen dan Chainsaw Man di mana embed server melabeli seluruh takarir (termasuk Arab) sebagai `lang="en"`.
+                    - **Kandidat Terjemahan Bahasa Inggris Asli:** Memastikan auto-translate Bahasa Indonesia hanya mengambil trek Bahasa Inggris asli dan mengecualikan bahasa lain.
+                    - **Dukungan Deteksi Bahasa Otomatis (`sl=auto`):** Meng-upgrade engine terjemahan Google GTX+ dengan deteksi bahasa sumber otomatis untuk menangani seluruh bahasa upstream.
+                    - **Modal Pemilih Takarir (`PlayerSubtitleSheet`):** Menyediakan bottom sheet pemilih trek takarir di pemutar video dengan badge bahasa (`ID`, `EN`, dll.) dan opsi menonaktifkan subtitle.
+                    - **Ikon Toggle Subtitle di HUD:** Menambahkan tombol subtitle di sebelah tombol kunci layar dengan indikator status aktif oranye Crunchyroll.
+                    - **Pergantian Trek Real-Time (`switchSubtitleTrack`):** Menukar konfigurasi takarir ExoPlayer di posisi playback berjalan tanpa buffering ulang dan mencegah socket starvation.
+
+                    #### ⚡ Akselerasi Loading Streaming 5x Lebih Cepat:
+                    - **Paralelisasi Terjemahan dengan Tokio `JoinSet`:** Mengganti loop sekuensial 20 request di daemon Rust menjadi tugas asinkron simultan (batch 45 cues), memangkas waktu proses dari 13.2 detik menjadi < 1 detik.
+                    - **Background Subtitle Pre-Warming:** Memulai proses terjemahan dan caching di background secara non-blocking saat stream di-resolve, sehingga subtitle sudah siap di SQLite cache saat diminta player.
+                    - **Optimalisasi Jaringan & TCP No-Delay:** Mengaktifkan `tcp_nodelay(true)` dan connection pool 20 koneksi pada client proxy Rust untuk transmisi segmen video tanpa jeda paket.
+                    - **Tuning Buffer ExoPlayer:** Menurunkan ambang batas playback ke 1000ms dengan time prioritization untuk pemutaran video instan.
+
+                    #### 🖼️ Peningkatan Efek Paralaks Beranda (120Hz Home Parallax):
+                    - **Eliminasi Deadzone:** Memperbaiki perhitungan offset agar paralaks bergerak mulus sejak pixel pertama tanpa jeda 140px dari header.
+                    - **Rendering Draw-Phase Tanpa Recomposition:** Menggunakan lambda provider `parallaxOffsetProvider: () -> Float` agar translasi GPU berjalan mulus di layar 90Hz/120Hz.
+                    - **Kedalaman Visual 3x Lebih Nyata:** Memperluas skala bleed ke 1.20x dan meningkatkan batas translasi vertikal hingga 150px.
+                """.trimIndent(),
+                publishedAt = "2026-10-30",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.14/Miru-v0.2.14-release.apk",
+                apkSize = 22800000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.13",
                 versionName = "0.2.13",

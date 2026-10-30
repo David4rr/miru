@@ -12,6 +12,9 @@ use std::time::Duration;
 static PROXY_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .timeout(Duration::from_secs(45))
+        .tcp_nodelay(true)
+        .pool_max_idle_per_host(20)
+        .pool_idle_timeout(Duration::from_secs(60))
         .build()
         .expect("Failed to initialize proxy reqwest client")
 });

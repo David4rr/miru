@@ -9,6 +9,8 @@ use std::time::Duration;
 static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .timeout(Duration::from_secs(10))
+        .tcp_nodelay(true)
+        .pool_max_idle_per_host(10)
         .build()
         .expect("Failed to initialize sub HTTP client")
 });
@@ -90,7 +92,7 @@ pub async fn get_or_translate_vtt(
     mode: &str,
     db: &Database,
 ) -> Result<String> {
-    let cache_key = format!("sub2|{}|{}", mode, url);
+    let cache_key = format!("sub3|{}|{}", mode, url);
 
     // 1. Check local SQLite cache first (TTL 30 days)
     if let Ok(Some(cached_vtt)) = db.get_subtitle_cache(&cache_key, 86400 * 30) {
@@ -143,16 +145,35 @@ pub async fn get_or_translate_vtt(
         return Ok(raw_vtt);
     }
 
-    // Batch translate in blocks of 30 cues
+    // Concurrent batch translation with tokio::task::JoinSet (blocks of 45 cues)
     let mut translated_map: std::collections::HashMap<usize, String> = std::collections::HashMap::new();
-    for chunk in cue_indices.chunks(30) {
+    let mut join_set = tokio::task::JoinSet::new();
+
+    for chunk in cue_indices.chunks(45) {
         let combined_text: Vec<String> = chunk.iter().map(|&i| lines[i].trim().to_string()).collect();
         let joined = combined_text.join(" ~~~ ");
-        if let Ok(translated_joined) = translate_text(&joined, "en", "id").await {
-            let parts: Vec<&str> = translated_joined.split("~~~").collect();
-            for (i, &line_idx) in chunk.iter().enumerate() {
-                let translated_part = parts.get(i).map(|s| s.trim().to_string()).unwrap_or_else(|| lines[line_idx].to_string());
-                translated_map.insert(line_idx, translated_part);
+        let indices: Vec<usize> = chunk.to_vec();
+        join_set.spawn(async move {
+            let res = translate_text(&joined, "auto", "id").await;
+            (indices, res)
+        });
+    }
+
+    while let Some(res) = join_set.join_next().await {
+        if let Ok((indices, task_res)) = res {
+            match task_res {
+                Ok(translated_joined) => {
+                    let parts: Vec<&str> = translated_joined.split("~~~").collect();
+                    for (i, &line_idx) in indices.iter().enumerate() {
+                        let translated_part = parts.get(i).map(|s| s.trim().to_string()).unwrap_or_else(|| lines[line_idx].to_string());
+                        translated_map.insert(line_idx, translated_part);
+                    }
+                }
+                Err(_) => {
+                    for &line_idx in &indices {
+                        translated_map.insert(line_idx, lines[line_idx].to_string());
+                    }
+                }
             }
         }
     }
