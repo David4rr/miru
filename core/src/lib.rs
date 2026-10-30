@@ -173,7 +173,7 @@ async fn editions_handler(
         }
     };
 
-    match api::anilist::fetch_anime_editions(target_id).await {
+    match api::anilist::fetch_anime_editions(target_id, &state.db).await {
         Ok(editions) => Json(json!({ "success": true, "data": editions })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,

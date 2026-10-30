@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.14"
+        "0.2.15"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,30 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.15",
+                versionName = "0.2.15",
+                title = "Miru Android v0.2.15 (Canon Franchise Ordering & WIB Airing Schedule Accuracy)",
+                body = """
+                    ### Miru Android v0.2.15
+
+                    #### 🎬 Perbaikan Urutan Edisi & Relasi Franchise Kanon:
+                    - **Pembersihan Relasi Non-Kanon:** Menghapus relasi longgar `PARENT`, `SIDE_STORY`, `ALTERNATIVE`, dan `SPIN_OFF` pada `fetch_anime_editions`, strictly membatasi traversal hanya pada `PREQUEL` dan `SEQUEL` langsung.
+                    - **Eliminasi Pengelompokan Palsu:** Anime mandiri (seperti *Fullmetal Alchemist: Brotherhood*) dan spin-off mandiri (seperti *KonoSuba: Bakuen*) tidak lagi dikelompokkan dengan anime lain atau diberi label musim `S1`/`S2` yang keliru. Komponen edisi otomatis tersembunyi jika anime berdiri sendiri (`editions.size <= 1`).
+                    - **Ekspansi Frontier Waralaba Panjang:** Menambahkan traversal ekspansi maju dan mundur terukur (2 iterasi) sehingga serial panjang (>3 musim seperti *My Hero Academia*) tetap terpetakan lengkap tanpa terpotong batas kedalaman GraphQL AniList.
+                    - **Cache SQLite 24 Jam:** Menyimpan hasil resolusi edisi ke SQLite cache selama 24 jam untuk navigasi instan tanpa overhead network berulang.
+
+                    #### ⏰ Perbaikan Jadwal Rilis & Jam Tayang WIB (Waktu Indonesia Barat):
+                    - **Perhitungan Batas Hari WIB (UTC+7):** Mengganti kalkulasi hari UTC dengan offset WIB (+25.200 detik) pada jadwal mingguan dan catalog `Rilis Hari Ini`, mengeliminasi kebocoran episode dini hari esok (misal 06:00 WIB) yang sebelumnya muncul di bawah jadwal malam hari ini.
+                    - **Pengurutan Jam Kronologis Presisi:** Mengurutkan seluruh penayangan harian secara ascending berdasarkan waktu tayang riil, memastikan urutan jam mengalir teratur dari pagi hingga tengah malam tanpa urutan jam terbalik.
+                    - **Badge Status Penayangan & Jam Rilis:** Kartu jadwal kini menampilkan badge status `"Sudah Tayang"` / `"Akan Tayang"`, serta swimlane beranda menampilkan jam penayangan ("21:00 WIB") untuk episode mendatang dan status rilis ("Ep X • Rilis") untuk episode yang sudah tayang.
+                    - **Timezone Eksplisit Android:** Memastikan `SimpleDateFormat` memformat jam dengan timezone eksplisit `Asia/Jakarta` mencegah inkonsistensi waktu pada perangkat dengan setelan non-WIB.
+                """.trimIndent(),
+                publishedAt = "2026-10-30",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.15/Miru-v0.2.15-release.apk",
+                apkSize = 22900000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.14",
                 versionName = "0.2.14",

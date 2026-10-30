@@ -308,9 +308,12 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
     }
 
     use chrono::{Datelike, Utc};
+    const WIB_OFFSET_SECS: i64 = 7 * 3600;
     let now = Utc::now();
-    let today_date = now.date_naive();
-    let today_start = today_date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+    let now_ts = now.timestamp();
+    let now_wib_ts = now_ts + WIB_OFFSET_SECS;
+    let day_secs = now_wib_ts.rem_euclid(86400);
+    let today_start = now_wib_ts - day_secs - WIB_OFFSET_SECS;
     let today_end = today_start + 86400;
 
     let month = now.month();
@@ -358,7 +361,8 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
         .and_then(|m| m.as_array())
         .cloned()
         .unwrap_or_default();
-    let airing_today = airing_today_arr.iter().filter_map(parse_schedule_item).collect();
+    let mut airing_today: Vec<ScheduleItem> = airing_today_arr.iter().filter_map(parse_schedule_item).collect();
+    airing_today.sort_by_key(|s| s.airing_at);
 
     let top_rated_arr = data.get("topRated")
         .and_then(|tr| tr.get("media"))
@@ -423,10 +427,17 @@ query WeeklySchedule($weekStart: Int, $weekEnd: Int, $page: Int) {
 "#;
 
 pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
-    use chrono::{Datelike, Duration, Utc, Weekday};
-    let now = Utc::now();
-    let today_date = now.date_naive();
-    let cache_key = format!("weekly_schedule_{}", today_date.format("%Y_%W"));
+    use chrono::{Datelike, Utc, Weekday};
+    const WIB_OFFSET_SECS: i64 = 7 * 3600;
+    let now_ts = Utc::now().timestamp();
+    let now_wib_ts = now_ts + WIB_OFFSET_SECS;
+    let day_secs = now_wib_ts.rem_euclid(86400);
+    let today_start = now_wib_ts - day_secs - WIB_OFFSET_SECS;
+
+    let today_date_wib = chrono::DateTime::from_timestamp(today_start + WIB_OFFSET_SECS, 0)
+        .unwrap_or_else(|| Utc::now().into())
+        .date_naive();
+    let cache_key = format!("weekly_schedule_{}", today_date_wib.format("%Y_%W"));
 
     if let Ok(Some(cached)) = db.get_search_cache(&cache_key, 3600) {
         if let Ok(res) = serde_json::from_value::<WeeklyScheduleResponse>(cached) {
@@ -434,7 +445,7 @@ pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
         }
     }
 
-    let days_from_monday = match today_date.weekday() {
+    let days_from_monday = match today_date_wib.weekday() {
         Weekday::Mon => 0,
         Weekday::Tue => 1,
         Weekday::Wed => 2,
@@ -443,8 +454,7 @@ pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
         Weekday::Sat => 5,
         Weekday::Sun => 6,
     };
-    let week_start_date = today_date - Duration::days(days_from_monday);
-    let week_start = week_start_date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+    let week_start = today_start - days_from_monday * 86400;
     let week_end = week_start + 7 * 86400;
 
     let mut all_schedules = Vec::new();
@@ -490,23 +500,26 @@ pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
     let mut days = Vec::new();
 
     for (day_name, day_key, day_offset) in day_configs {
-        let current_day_date = week_start_date + Duration::days(day_offset);
-        let day_start = current_day_date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+        let day_start = week_start + day_offset * 86400;
         let day_end = day_start + 86400;
-        let is_today = current_day_date == today_date;
+        let is_today = day_start == today_start;
 
-        let month_name = match current_day_date.month() {
+        let day_naive = chrono::DateTime::from_timestamp(day_start + WIB_OFFSET_SECS, 0)
+            .unwrap_or_else(|| Utc::now().into())
+            .date_naive();
+        let month_name = match day_naive.month() {
             1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
             5 => "Mei", 6 => "Jun", 7 => "Jul", 8 => "Agt",
             9 => "Sep", 10 => "Okt", 11 => "Nov", _ => "Des",
         };
-        let date_formatted = format!("{} {}", current_day_date.day(), month_name);
+        let date_formatted = format!("{} {}", day_naive.day(), month_name);
 
-        let items: Vec<ScheduleItem> = all_schedules
+        let mut items: Vec<ScheduleItem> = all_schedules
             .iter()
             .filter(|s| s.airing_at >= day_start && s.airing_at < day_end)
             .cloned()
             .collect();
+        items.sort_by_key(|s| s.airing_at);
 
         days.push(DaySchedule {
             day_name: day_name.to_string(),
@@ -625,7 +638,14 @@ query AnimeRelations($id: Int) {
 }
 "#;
 
-pub async fn fetch_anime_editions(target_id: i64) -> Result<Vec<AnimeEdition>> {
+pub async fn fetch_anime_editions(target_id: i64, db: &Database) -> Result<Vec<AnimeEdition>> {
+    let cache_key = format!("anime_editions_{}", target_id);
+    if let Ok(Some(cached)) = db.get_search_cache(&cache_key, 86400) {
+        if let Ok(editions) = serde_json::from_value::<Vec<AnimeEdition>>(cached) {
+            return Ok(editions);
+        }
+    }
+
     let variables = json!({ "id": target_id });
     let res = query_anilist(EDITIONS_QUERY, variables).await?;
     let root = res.get("data")
@@ -648,25 +668,74 @@ pub async fn fetch_anime_editions(target_id: i64) -> Result<Vec<AnimeEdition>> {
         }
     };
 
-    parse_node(root);
-    if let Some(edges) = root.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
-        for edge in edges {
-            let rel = edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
-            if matches!(rel, "PREQUEL" | "SEQUEL" | "PARENT" | "SIDE_STORY" | "ALTERNATIVE" | "SPIN_OFF") {
-                if let Some(node) = edge.get("node") {
-                    parse_node(node);
-                    if let Some(sub_edges) = node.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
-                        for sub_edge in sub_edges {
-                            let sub_rel = sub_edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
-                            if matches!(sub_rel, "PREQUEL" | "SEQUEL" | "PARENT" | "SIDE_STORY" | "ALTERNATIVE") {
-                                if let Some(sub_node) = sub_edge.get("node") {
-                                    parse_node(sub_node);
+    let mut extract_relations = |node: &Value| {
+        if let Some(edges) = node.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
+            for edge in edges {
+                let rel = edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
+                if matches!(rel, "PREQUEL" | "SEQUEL") {
+                    if let Some(n) = edge.get("node") {
+                        parse_node(n);
+                        if let Some(sub_edges) = n.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
+                            for sub_edge in sub_edges {
+                                let sub_rel = sub_edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
+                                if matches!(sub_rel, "PREQUEL" | "SEQUEL") {
+                                    if let Some(sub_node) = sub_edge.get("node") {
+                                        parse_node(sub_node);
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+    };
+
+    parse_node(root);
+    extract_relations(root);
+
+    // Frontier expansion for long franchises (>3 seasons): up to 2 forward and 2 backward
+    for _ in 0..2 {
+        let mut sorted_keys: Vec<(i64, i64)> = map.iter().map(|(&k, (_, d))| (k, *d)).collect();
+        sorted_keys.sort_by_key(|(_, d)| *d);
+        if let Some(&(latest_id, _)) = sorted_keys.last() {
+            if latest_id != target_id {
+                let before_len = map.len();
+                if let Ok(extra_val) = query_anilist(EDITIONS_QUERY, json!({ "id": latest_id })).await {
+                    if let Some(extra_node) = extra_val.get("data").and_then(|d| d.get("Media")) {
+                        extract_relations(extra_node);
+                    }
+                }
+                if map.len() == before_len {
+                    break;
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    for _ in 0..2 {
+        let mut sorted_keys: Vec<(i64, i64)> = map.iter().map(|(&k, (_, d))| (k, *d)).collect();
+        sorted_keys.sort_by_key(|(_, d)| *d);
+        if let Some(&(earliest_id, _)) = sorted_keys.first() {
+            if earliest_id != target_id {
+                let before_len = map.len();
+                if let Ok(extra_val) = query_anilist(EDITIONS_QUERY, json!({ "id": earliest_id })).await {
+                    if let Some(extra_node) = extra_val.get("data").and_then(|d| d.get("Media")) {
+                        extract_relations(extra_node);
+                    }
+                }
+                if map.len() == before_len {
+                    break;
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
         }
     }
 
@@ -728,6 +797,10 @@ pub async fn fetch_anime_editions(target_id: i64) -> Result<Vec<AnimeEdition>> {
             is_current: (id == target_id),
             date_order: date_val,
         });
+    }
+
+    if let Ok(json_res) = serde_json::to_value(&editions) {
+        let _ = db.set_search_cache(&cache_key, &json_res);
     }
 
     Ok(editions)

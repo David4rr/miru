@@ -97,6 +97,20 @@ fun ScheduleRowCard(
                 ) {
                     Text(text = "Episode ${item.episode}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (item.isAired) Color(0xFF1E3A2F) else Color.White.copy(alpha = 0.08f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (item.isAired) "Sudah Tayang" else "Akan Tayang",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (item.isAired) Color(0xFF4ADE80) else TextMuted
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(6.dp))

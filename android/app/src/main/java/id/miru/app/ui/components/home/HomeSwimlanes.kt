@@ -83,7 +83,8 @@ fun LazyListScope.homeCatalogSwimlanes(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(catalog.airingToday) { scheduleItem ->
-                    AnimePosterCard(anime = scheduleItem.anime, onClick = onAnimeClick)
+                    val badge = if (scheduleItem.isAired) "Ep ${scheduleItem.episode} • Rilis" else scheduleItem.formattedTime
+                    AnimePosterCard(anime = scheduleItem.anime, onClick = onAnimeClick, customBadge = badge)
                 }
             }
         }

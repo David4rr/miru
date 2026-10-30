@@ -118,12 +118,16 @@ data class ScheduleItem(
         get() {
             return try {
                 val date = java.util.Date(airingAt * 1000)
-                val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+                sdf.timeZone = java.util.TimeZone.getTimeZone("Asia/Jakarta")
                 sdf.format(date) + " WIB"
             } catch (e: Exception) {
                 "Ep $episode"
             }
         }
+
+    val isAired: Boolean
+        get() = (System.currentTimeMillis() / 1000) >= airingAt
 }
 
 data class DaySchedule(
