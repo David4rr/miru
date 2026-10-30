@@ -154,6 +154,7 @@ fun PlayerScreen(
                 onRewind10Click = { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000).coerceAtLeast(0)); ping() },
                 onForward10Click = { exoPlayer.seekTo((exoPlayer.currentPosition + 10_000).coerceAtMost(duration)); ping() },
                 onNextEpisodeClick = { if (currentEpisode < totalEpisodes) currentEpisode += 1; ping() },
+                currentPosition = currentPosition, duration = duration, playbackSpeed = playbackSpeed,
                 onSeek = { target -> exoPlayer.seekTo(target); ping() },
                 onCycleSpeed = {
                     playbackSpeed = cycleNextSpeed(playbackSpeed)

@@ -36,6 +36,7 @@ fun PlayerControlsOverlay(
     onRewind10Click: () -> Unit,
     onForward10Click: () -> Unit,
     onNextEpisodeClick: () -> Unit,
+    currentPosition: Long,
     duration: Long,
     playbackSpeed: Float,
     onSeek: (Long) -> Unit,
