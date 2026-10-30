@@ -62,15 +62,12 @@ fun HomeScreen(
 
     val parallaxOffsetProvider: () -> Float = remember {
         {
-            val visible = listState.layoutInfo.visibleItemsInfo
-            val heroItem = visible.firstOrNull { it.index == 1 }
-            if (heroItem != null) {
-                val headerHeight = visible.firstOrNull { it.index == 0 }?.size ?: 140
-                (headerHeight - heroItem.offset).coerceAtLeast(0).toFloat()
-            } else if (listState.firstVisibleItemIndex > 1) {
-                1000f
+            if (listState.firstVisibleItemIndex == 0) {
+                listState.firstVisibleItemScrollOffset.toFloat()
+            } else if (listState.firstVisibleItemIndex == 1) {
+                140f + listState.firstVisibleItemScrollOffset.toFloat()
             } else {
-                0f
+                1000f
             }
         }
     }

@@ -1,27 +1,19 @@
 package id.miru.app.ui.components.home
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import android.os.Build
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,18 +39,28 @@ fun HeroBannerItem(
     absOffset: Float = 0f
 ) {
     val offsetProvider = parallaxOffsetProvider ?: { parallaxOffset }
-    val cardShape = RoundedCornerShape(20.dp)
-    val cardBorder = Brush.verticalGradient(
-        listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.03f))
-    )
+    val cardShape = remember { RoundedCornerShape(20.dp) }
+    val cardBorder = remember {
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.03f)))
+    }
+    val scrimBrush = remember {
+        Brush.verticalGradient(
+            0.0f to Color.Transparent,
+            0.32f to Color.Transparent,
+            0.52f to DarkBackground.copy(alpha = 0.28f),
+            0.68f to DarkBackground.copy(alpha = 0.62f),
+            0.82f to DarkBackground.copy(alpha = 0.88f),
+            0.93f to DarkBackground.copy(alpha = 0.97f),
+            1.0f to DarkBackground
+        )
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(380.dp)
             .graphicsLayer {
-                scaleX = 1f - 0.08f * absOffset
-                scaleY = 1f - 0.08f * absOffset
+                scaleX = 1f - 0.08f * absOffset; scaleY = 1f - 0.08f * absOffset
                 alpha = 1f - 0.45f * absOffset
             }
             .clip(cardShape)
@@ -70,24 +72,26 @@ fun HeroBannerItem(
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer {
-                scaleX = 1.05f
-                scaleY = 1.05f
+                val scroll = offsetProvider()
+                scaleX = 1.05f; scaleY = 1.05f
                 translationX = pageOffset * 35f
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val blurPx = (scroll / 18f).coerceIn(0f, 24f)
+                    if (blurPx > 0.5f) {
+                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                            blurPx, blurPx, android.graphics.Shader.TileMode.CLAMP
+                        ).asComposeRenderEffect()
+                    }
+                }
             }
         )
 
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(280.dp)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f), DarkBackground.copy(alpha = 0.95f), DarkBackground)
-                    )
-                )
+                .fillMaxSize()
+                .background(scrimBrush)
                 .drawBehind {
-                    val darkening = (offsetProvider() / 280f).coerceIn(0f, 0.75f)
+                    val darkening = (offsetProvider() / 250f).coerceIn(0f, 0.70f)
                     if (darkening > 0f) drawRect(DarkBackground.copy(alpha = darkening))
                 }
         )
@@ -171,11 +175,10 @@ fun HeroBannerItem(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.weight(1f).height(44.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "Tonton Sekarang", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Icon(Icons.Default.PlayArrow, null, tint = Color.Black)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Tonton Sekarang", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
-
                 Button(
                     onClick = { onItemClick(anime) },
                     colors = ButtonDefaults.buttonColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
@@ -183,9 +186,9 @@ fun HeroBannerItem(
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier.height(44.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.BookmarkBorder, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Detail", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Icon(Icons.Default.BookmarkBorder, null, tint = Color.White)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Detail", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }

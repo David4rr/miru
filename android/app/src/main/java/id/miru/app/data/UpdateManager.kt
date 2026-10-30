@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.17"
+        "0.2.18"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,27 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.18",
+                versionName = "0.2.18",
+                title = "Miru Android v0.2.18 (True 120Hz Fluid Motion & Progressive Frosted Blur Scrim)",
+                body = """
+                    ### Miru Android v0.2.18
+
+                    #### ⚡ Perbaikan Fatal Stutter Scroll 120Hz (MainActivity):
+                    - **Eliminasi Recomposition Loop:** Menghapus mutasi state Compose `lastScrollTime` di dalam `onPreScroll` yang sebelumnya memicu recomposition berulang puluhan kali per detik pada root composable tree.
+                    - **Debounced Coroutine FAB Job:** Mengganti trigger scroll dengan coroutine job ber-debounce, memastikan state FAB hanya berubah tepat 1 kali saat scroll dimulai dan 1 kali saat scroll berhenti. Scroll vertikal kini terkunci mulus pada 120 FPS.
+                    - **Zero-Allocation Scroll Offset:** Mengoptimalkan pembacaan scroll offset beranda langsung dari integer state tanpa mengalokasikan memori layout per frame.
+
+                    #### 🌫️ Efek Scrim Halus & Frosted Glass Blur (Android 12+):
+                    - **7-Stop Non-Linear Cubic Easing Scrim:** Mengganti gradasi 4 titik yang kaku dengan kurva kubik 7-stop melengkung lembut dari transparan di area atas (32%) hingga hitam pekat di dasar kartu, tanpa garis potongan kasar.
+                    - **Progressive Frosted Blur (RenderEffect):** Menerapkan efek blur dinamis pada poster anime saat di-scroll vertikal (`RenderEffect.createBlurEffect`), menghasilkan latar belakang kaca buram sinematik yang memudar anggun ke dalam konten di bawahnya.
+                """.trimIndent(),
+                publishedAt = "2026-10-30",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.18/app-release.apk",
+                apkSize = 38800000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.17",
                 versionName = "0.2.17",

@@ -12,26 +12,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import kotlin.math.absoluteValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.*
+import kotlin.math.absoluteValue
+import kotlinx.coroutines.*
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.AppRelease
 import id.miru.app.data.UpdateManager
@@ -75,18 +65,26 @@ fun MainApp() {
     var activePlayingSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }
     var availableUpdate by remember { mutableStateOf<AppRelease?>(null) }; var showUpdateSheet by remember { mutableStateOf(false) }
     var showScheduleScreen by remember { mutableStateOf(false) }; var isUpdateBannerDismissed by remember { mutableStateOf(false) }
-    var isFabVisible by remember { mutableStateOf(true) }; var lastScrollTime by remember { mutableLongStateOf(0L) }
+    val coroutineScope = rememberCoroutineScope()
+    var fabJob by remember { mutableStateOf<Job?>(null) }
+    var isFabVisible by remember { mutableStateOf(true) }
     var lastAnime by remember { mutableStateOf<AnimeCard?>(null) }; if (selectedAnime != null) lastAnime = selectedAnime
     var lastSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }; if (activePlayingSession != null) lastSession = activePlayingSession
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y.absoluteValue > 3f) { lastScrollTime = System.currentTimeMillis(); isFabVisible = false }
+                if (available.y.absoluteValue > 4f) {
+                    if (isFabVisible) isFabVisible = false
+                    fabJob?.cancel()
+                    fabJob = coroutineScope.launch {
+                        delay(600)
+                        isFabVisible = true
+                    }
+                }
                 return Offset.Zero
             }
         }
     }
-    LaunchedEffect(isFabVisible, lastScrollTime) { if (!isFabVisible) { delay(600); isFabVisible = true } }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
