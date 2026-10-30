@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,8 +27,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import id.miru.app.data.AnimeCard
 import id.miru.app.ui.components.home.HeroBannerItem
 import id.miru.app.ui.theme.CrunchyOrange
@@ -63,17 +66,43 @@ fun HeroBannerCarousel(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            HeroBannerItem(
-                anime = items[page],
-                onItemClick = onItemClick,
-                onWatchClick = onWatchClick,
-                parallaxOffset = parallaxOffset,
-                parallaxOffsetProvider = parallaxOffsetProvider
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Soft ambient bloom behind active card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(380.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                CrunchyOrange.copy(alpha = 0.16f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
+
+            HorizontalPager(
+                state = pagerState,
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                pageSpacing = 12.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) { page ->
+                val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                val absOffset = abs(pageOffset).coerceIn(0f, 1f)
+                HeroBannerItem(
+                    anime = items[page],
+                    onItemClick = onItemClick,
+                    onWatchClick = onWatchClick,
+                    parallaxOffset = parallaxOffset,
+                    parallaxOffsetProvider = parallaxOffsetProvider,
+                    pageOffset = pageOffset,
+                    absOffset = absOffset
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))

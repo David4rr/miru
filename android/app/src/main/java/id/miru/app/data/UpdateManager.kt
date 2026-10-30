@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.16"
+        "0.2.17"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,30 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.17",
+                versionName = "0.2.17",
+                title = "Miru Android v0.2.17 (Minimalist Outlined Subtitles & Ultra-Luxurious Inset Peek Hero Carousel)",
+                body = """
+                    ### Miru Android v0.2.17
+
+                    #### 💬 Takarir Sinematik Minimalis & Kontras Tinggi (Crunchyroll Standard):
+                    - **Eliminasi Kotak Hitam Kaku:** Mengonfigurasi `SubtitleView` di `PlayerVideoSurface` dengan background dan window 100% transparan, menghapus kotak persegi hitam pekat yang sebelumnya menutupi video.
+                    - **Garis Tepi Hitam Kontras Tinggi (Outline 1px):** Menggunakan `CaptionStyleCompat.EDGE_TYPE_OUTLINE` hitam pekat dengan teks putih, menjamin takarir tetap terbaca 100% pada adegan anime yang sangat terang (ledakan, salju, efek jurus putih) tanpa memerlukan kotak latar.
+                    - **Tipografi Sans-Serif Medium & Skala Proporsional:** Menggunakan font `sans-serif-medium` dengan skala proporsional `0.88x` (~0.0469f) dan padding bawah `0.065f`, menjaga takarir tetap ramping dan berada di atas garis kontrol pemutar.
+                    - **Sanitasi WebVTT Scraper:** Mematikan style dan ukuran font bawaan file WebVTT pihak ketiga (`setApplyEmbeddedStyles(false)` & `setApplyEmbeddedFontSizes(false)`).
+
+                    #### ✨ Tampilan Hero Banner Mewah (Apple TV+ & Disney+ Showcase Tier):
+                    - **Inset Peek Card Carousel:** Mengganti banner kaku ujung-ke-ujung dengan kartu inset melayang (`contentPadding = 20.dp`, `pageSpacing = 12.dp`), menampilkan kartu preview anime sebelum dan sesudahnya dengan anggun di sisi kiri dan kanan.
+                    - **Interpolasi Kedalaman 3D & Horizontal Counter-Parallax:** Kartu anime aktif tampil di skala `1.0f`, sementara kartu samping mengecil mulus ke `0.92f` dan temaram (`0.55f`). Di dalam kartu, poster bergeser berlawanan arah secara mikro (`translationX = pageOffset * 35f` dengan bleed hanya 5%), menciptakan ilusi kedalaman jendela 3D tanpa memotong kepala karakter dari crop 1.20x.
+                    - **Double-Bezel Glass Border & OLED Ambient Bloom:** Kartu dibungkus sudut `20.dp` dengan garis tepi kaca gradasi vertikal presisi (`1.dp`), disertai pendaran cahaya oranye Crunchyroll (*ambient glow*) di belakang kartu aktif.
+                    - **Transisi Scroll Vertikal Halus:** Menghilangkan pergeseran vertikal berlawanan arah yang membuat pusing, digantikan dengan pudarnya teks judul dan tombol aksi secara anggun (*draw-phase alpha fadeout*) serta penggelapan lapisan obsidian saat beranda digulir ke bawah.
+                """.trimIndent(),
+                publishedAt = "2026-10-30",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.17/app-release.apk",
+                apkSize = 38800000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.16",
                 versionName = "0.2.16",

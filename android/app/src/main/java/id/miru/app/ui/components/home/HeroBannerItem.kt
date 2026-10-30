@@ -1,20 +1,10 @@
 package id.miru.app.ui.components.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -28,7 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -42,7 +32,6 @@ import id.miru.app.data.AnimeCard
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkBackground
 import id.miru.app.ui.theme.DarkSurface
-import id.miru.app.ui.theme.DarkSurfaceVariant
 import id.miru.app.ui.theme.TextPrimary
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -53,27 +42,38 @@ fun HeroBannerItem(
     onWatchClick: (AnimeCard) -> Unit,
     modifier: Modifier = Modifier,
     parallaxOffset: Float = 0f,
-    parallaxOffsetProvider: (() -> Float)? = null
+    parallaxOffsetProvider: (() -> Float)? = null,
+    pageOffset: Float = 0f,
+    absOffset: Float = 0f
 ) {
     val offsetProvider = parallaxOffsetProvider ?: { parallaxOffset }
+    val cardShape = RoundedCornerShape(20.dp)
+    val cardBorder = Brush.verticalGradient(
+        listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.03f))
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(380.dp)
-            .clipToBounds()
+            .graphicsLayer {
+                scaleX = 1f - 0.08f * absOffset
+                scaleY = 1f - 0.08f * absOffset
+                alpha = 1f - 0.45f * absOffset
+            }
+            .clip(cardShape)
+            .border(1.dp, cardBorder, cardShape)
             .clickable { onItemClick(anime) }
     ) {
         AsyncImage(
             model = anime.banner ?: anime.poster,
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = 1.20f
-                    scaleY = 1.20f
-                    translationY = (offsetProvider() * 0.40f).coerceIn(0f, 150f)
-                }
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                scaleX = 1.05f
+                scaleY = 1.05f
+                translationX = pageOffset * 35f
+            }
         )
 
         Box(
@@ -83,14 +83,13 @@ fun HeroBannerItem(
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            DarkBackground.copy(alpha = 0.6f),
-                            DarkBackground.copy(alpha = 0.95f),
-                            DarkBackground
-                        )
+                        listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f), DarkBackground.copy(alpha = 0.95f), DarkBackground)
                     )
                 )
+                .drawBehind {
+                    val darkening = (offsetProvider() / 280f).coerceIn(0f, 0.75f)
+                    if (darkening > 0f) drawRect(DarkBackground.copy(alpha = darkening))
+                }
         )
 
         Column(
@@ -98,14 +97,21 @@ fun HeroBannerItem(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 16.dp, vertical = 20.dp)
+                .graphicsLayer {
+                    val scrollOffset = offsetProvider()
+                    alpha = (1f - (scrollOffset / 200f)).coerceIn(0f, 1f)
+                    translationY = -(scrollOffset * 0.15f).coerceIn(0f, 30f)
+                }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (anime.score != null && anime.score > 0.0) {
+                    val pillShape = RoundedCornerShape(6.dp)
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                            .clip(pillShape)
+                            .background(Color.Black.copy(alpha = 0.75f))
+                            .border(0.5.dp, Color.White.copy(alpha = 0.18f), pillShape)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(12.dp))
@@ -115,11 +121,13 @@ fun HeroBannerItem(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
 
+                val epShape = RoundedCornerShape(6.dp)
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(DarkSurfaceVariant)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clip(epShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.12f), epShape)
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Text(text = anime.displayEpisodes, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 }
@@ -127,16 +135,28 @@ fun HeroBannerItem(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Text(text = anime.title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = anime.title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
 
             if (anime.genres.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     anime.genres.take(3).forEach { genre ->
+                        val genreShape = RoundedCornerShape(6.dp)
                         Box(
-                            modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = 0.15f)).padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier
+                                .clip(genreShape)
+                                .background(Color.White.copy(alpha = 0.12f))
+                                .border(0.5.dp, Color.White.copy(alpha = 0.08f), genreShape)
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
                         ) {
-                            Text(text = genre, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                            Text(text = genre, fontSize = 11.sp, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -148,7 +168,7 @@ fun HeroBannerItem(
                 Button(
                     onClick = { onWatchClick(anime) },
                     colors = ButtonDefaults.buttonColors(containerColor = CrunchyOrange),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.weight(1f).height(44.dp)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
@@ -158,8 +178,9 @@ fun HeroBannerItem(
 
                 Button(
                     onClick = { onItemClick(anime) },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurface),
-                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurface.copy(alpha = 0.85f)),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier.height(44.dp)
                 ) {
                     Icon(imageVector = Icons.Default.BookmarkBorder, contentDescription = null, tint = Color.White)

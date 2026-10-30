@@ -12,8 +12,8 @@ android {
         applicationId = "id.miru.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 23
-        versionName = "0.2.16"
+        versionCode = 24
+        versionName = "0.2.17"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
