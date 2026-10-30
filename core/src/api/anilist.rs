@@ -637,6 +637,42 @@ query AnimeRelations($id: Int) {
   }
 }
 "#;
+fn parse_node_into(m: &Value, map: &mut std::collections::HashMap<i64, (Value, i64)>) {
+    if let Some(id) = m.get("id").and_then(|v| v.as_i64()) {
+        let m_type = m.get("type").and_then(|t| t.as_str()).unwrap_or("ANIME");
+        if m_type == "ANIME" && !map.contains_key(&id) {
+            let sd = m.get("startDate");
+            let y = sd.and_then(|s| s.get("year")).and_then(|v| v.as_i64()).unwrap_or(9999);
+            let mo = sd.and_then(|s| s.get("month")).and_then(|v| v.as_i64()).unwrap_or(1);
+            let d = sd.and_then(|s| s.get("day")).and_then(|v| v.as_i64()).unwrap_or(1);
+            let date_val = y * 10000 + mo * 100 + d;
+            map.insert(id, (m.clone(), date_val));
+        }
+    }
+}
+
+fn extract_relations_into(node: &Value, map: &mut std::collections::HashMap<i64, (Value, i64)>) {
+    if let Some(edges) = node.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
+        for edge in edges {
+            let rel = edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
+            if matches!(rel, "PREQUEL" | "SEQUEL") {
+                if let Some(n) = edge.get("node") {
+                    parse_node_into(n, map);
+                    if let Some(sub_edges) = n.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
+                        for sub_edge in sub_edges {
+                            let sub_rel = sub_edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
+                            if matches!(sub_rel, "PREQUEL" | "SEQUEL") {
+                                if let Some(sub_node) = sub_edge.get("node") {
+                                    parse_node_into(sub_node, map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 pub async fn fetch_anime_editions(target_id: i64, db: &Database) -> Result<Vec<AnimeEdition>> {
     let cache_key = format!("anime_editions_{}", target_id);
@@ -654,45 +690,8 @@ pub async fn fetch_anime_editions(target_id: i64, db: &Database) -> Result<Vec<A
 
     let mut map: std::collections::HashMap<i64, (Value, i64)> = std::collections::HashMap::new();
 
-    let mut parse_node = |m: &Value| {
-        if let Some(id) = m.get("id").and_then(|v| v.as_i64()) {
-            let m_type = m.get("type").and_then(|t| t.as_str()).unwrap_or("ANIME");
-            if m_type == "ANIME" && !map.contains_key(&id) {
-                let sd = m.get("startDate");
-                let y = sd.and_then(|s| s.get("year")).and_then(|v| v.as_i64()).unwrap_or(9999);
-                let mo = sd.and_then(|s| s.get("month")).and_then(|v| v.as_i64()).unwrap_or(1);
-                let d = sd.and_then(|s| s.get("day")).and_then(|v| v.as_i64()).unwrap_or(1);
-                let date_val = y * 10000 + mo * 100 + d;
-                map.insert(id, (m.clone(), date_val));
-            }
-        }
-    };
-
-    let mut extract_relations = |node: &Value| {
-        if let Some(edges) = node.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
-            for edge in edges {
-                let rel = edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
-                if matches!(rel, "PREQUEL" | "SEQUEL") {
-                    if let Some(n) = edge.get("node") {
-                        parse_node(n);
-                        if let Some(sub_edges) = n.get("relations").and_then(|r| r.get("edges")).and_then(|e| e.as_array()) {
-                            for sub_edge in sub_edges {
-                                let sub_rel = sub_edge.get("relationType").and_then(|r| r.as_str()).unwrap_or("");
-                                if matches!(sub_rel, "PREQUEL" | "SEQUEL") {
-                                    if let Some(sub_node) = sub_edge.get("node") {
-                                        parse_node(sub_node);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    };
-
-    parse_node(root);
-    extract_relations(root);
+    parse_node_into(root, &mut map);
+    extract_relations_into(root, &mut map);
 
     // Frontier expansion for long franchises (>3 seasons): up to 2 forward and 2 backward
     for _ in 0..2 {
@@ -703,7 +702,7 @@ pub async fn fetch_anime_editions(target_id: i64, db: &Database) -> Result<Vec<A
                 let before_len = map.len();
                 if let Ok(extra_val) = query_anilist(EDITIONS_QUERY, json!({ "id": latest_id })).await {
                     if let Some(extra_node) = extra_val.get("data").and_then(|d| d.get("Media")) {
-                        extract_relations(extra_node);
+                        extract_relations_into(extra_node, &mut map);
                     }
                 }
                 if map.len() == before_len {
@@ -725,7 +724,7 @@ pub async fn fetch_anime_editions(target_id: i64, db: &Database) -> Result<Vec<A
                 let before_len = map.len();
                 if let Ok(extra_val) = query_anilist(EDITIONS_QUERY, json!({ "id": earliest_id })).await {
                     if let Some(extra_node) = extra_val.get("data").and_then(|d| d.get("Media")) {
-                        extract_relations(extra_node);
+                        extract_relations_into(extra_node, &mut map);
                     }
                 }
                 if map.len() == before_len {

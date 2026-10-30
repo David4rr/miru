@@ -7,7 +7,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{delete, get},
     Json, Router,
 };
 use db::{BookmarkItem, Database, WatchHistoryItem};
