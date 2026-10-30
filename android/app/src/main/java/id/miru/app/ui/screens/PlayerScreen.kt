@@ -146,13 +146,14 @@ fun PlayerScreen(
                 onToggleLock = { isScreenLocked = true; areControlsVisible = false; showUnlockButton = true },
                 onBackClick = { saveProgress(); exoPlayer.stop(); onBackClick() },
                 isPlaying = isPlaying, isBuffering = isBuffering, isLoadingStream = isLoadingStream,
+                hasPreviousEpisode = currentEpisode > 1,
                 hasNextEpisode = currentEpisode < totalEpisodes, errorMessage = streamErrorMessage,
                 onRetryClick = { loadStream() },
                 onPlayPauseClick = { if (isPlaying) exoPlayer.pause() else exoPlayer.play(); ping() },
+                onPreviousEpisodeClick = { if (currentEpisode > 1) currentEpisode -= 1; ping() },
                 onRewind10Click = { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000).coerceAtLeast(0)); ping() },
                 onForward10Click = { exoPlayer.seekTo((exoPlayer.currentPosition + 10_000).coerceAtMost(duration)); ping() },
                 onNextEpisodeClick = { if (currentEpisode < totalEpisodes) currentEpisode += 1; ping() },
-                currentPosition = currentPosition, duration = duration, playbackSpeed = playbackSpeed,
                 onSeek = { target -> exoPlayer.seekTo(target); ping() },
                 onCycleSpeed = {
                     playbackSpeed = cycleNextSpeed(playbackSpeed)

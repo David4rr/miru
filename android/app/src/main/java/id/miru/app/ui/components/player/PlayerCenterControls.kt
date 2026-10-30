@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,10 +42,12 @@ fun PlayerCenterControls(
     isPlaying: Boolean,
     isBuffering: Boolean,
     isLoadingStream: Boolean,
-    hasNextEpisode: Boolean,
+    hasPreviousEpisode: Boolean = false,
+    hasNextEpisode: Boolean = false,
     errorMessage: String? = null,
     onRetryClick: (() -> Unit)? = null,
     onPlayPauseClick: () -> Unit,
+    onPreviousEpisodeClick: () -> Unit = {},
     onRewind10Click: () -> Unit,
     onForward10Click: () -> Unit,
     onNextEpisodeClick: () -> Unit,
@@ -80,14 +83,38 @@ fun PlayerCenterControls(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = onRewind10Click,
-            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
+            onClick = onPreviousEpisodeClick,
+            enabled = hasPreviousEpisode,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = if (hasPreviousEpisode) 0.5f else 0.2f))
         ) {
-            Icon(imageVector = Icons.Default.Replay10, contentDescription = "-10 Detik", tint = Color.White, modifier = Modifier.size(28.dp))
+            Icon(
+                imageVector = Icons.Default.SkipPrevious,
+                contentDescription = "Episode Sebelumnya",
+                tint = if (hasPreviousEpisode) Color.White else Color.White.copy(alpha = 0.25f),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        IconButton(
+            onClick = onRewind10Click,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.5f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.Replay10,
+                contentDescription = "-10 Detik",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
         }
 
         Box(
@@ -110,18 +137,33 @@ fun PlayerCenterControls(
 
         IconButton(
             onClick = onForward10Click,
-            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.5f))
         ) {
-            Icon(imageVector = Icons.Default.Forward10, contentDescription = "+10 Detik", tint = Color.White, modifier = Modifier.size(28.dp))
+            Icon(
+                imageVector = Icons.Default.Forward10,
+                contentDescription = "+10 Detik",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
         }
 
-        if (hasNextEpisode) {
-            IconButton(
-                onClick = onNextEpisodeClick,
-                modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
-            ) {
-                Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Episode Berikutnya", tint = Color.White, modifier = Modifier.size(28.dp))
-            }
+        IconButton(
+            onClick = onNextEpisodeClick,
+            enabled = hasNextEpisode,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = if (hasNextEpisode) 0.5f else 0.2f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.SkipNext,
+                contentDescription = "Episode Berikutnya",
+                tint = if (hasNextEpisode) Color.White else Color.White.copy(alpha = 0.25f),
+                modifier = Modifier.size(28.dp)
+            )
         }
     }
 }
