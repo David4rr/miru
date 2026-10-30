@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.15"
+        "0.2.16"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,31 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.16",
+                versionName = "0.2.16",
+                title = "Miru Android v0.2.16 (Canon Franchise Ordering, WIB Schedule & Symmetrical Player HUD)",
+                body = """
+                    ### Miru Android v0.2.16
+
+                    #### 🎛️ Penyederhanaan HUD Pemutar Video & Navigasi Simetris:
+                    - **Penyederhanaan Tombol Subtitle:** Menghapus latar belakang oranye kontras tinggi pada tombol subtitle atas; diganti dengan lingkaran monokrom netral yang elegan dan ikon putih bersih agar tidak mendistraksi pengalaman menonton video.
+                    - **Tata Letak 5 Tombol Simetris di Tengah:** Menambahkan tombol Episode Sebelumnya (`Icons.Default.SkipPrevious`) yang seimbang dengan Episode Berikutnya (`Icons.Default.SkipNext`), menjaga tombol Play/Pause tetap presisi di titik tengah.
+                    - **Penanganan Batas Tanpa Lompat:** Tombol episode sebelumnya dan berikutnya tetap berada di tempatnya saat di batas awal atau akhir episode dengan transparansi disabled (`alpha = 0.25f`), menjaga kestabilan posisi tanpa layout jump.
+
+                    #### 🎬 Perbaikan Urutan Edisi & Relasi Franchise Kanon:
+                    - **Pembersihan Relasi Non-Kanon:** Menghapus relasi longgar `PARENT`, `SIDE_STORY`, `ALTERNATIVE`, dan `SPIN_OFF` pada `fetch_anime_editions`, membatasi traversal hanya pada `PREQUEL` dan `SEQUEL` langsung.
+                    - **Eliminasi Pengelompokan Palsu:** Anime mandiri (seperti *Fullmetal Alchemist: Brotherhood*) dan spin-off mandiri tidak lagi dikelompokkan dengan anime lain atau diberi label musim `S1`/`S2` yang keliru.
+
+                    #### ⏰ Perbaikan Jadwal Rilis & Jam Tayang WIB (Waktu Indonesia Barat):
+                    - **Perhitungan Batas Hari WIB (UTC+7):** Mengganti kalkulasi hari UTC dengan offset WIB (+25.200 detik) pada jadwal mingguan dan catalog `Rilis Hari Ini`, mengeliminasi kebocoran episode dini hari esok ke hari ini.
+                    - **Pengurutan Jam Kronologis Presisi:** Mengurutkan seluruh penayangan harian secara ascending berdasarkan waktu tayang riil.
+                """.trimIndent(),
+                publishedAt = "2026-10-30",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.16/app-release.apk",
+                apkSize = 38800000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.15",
                 versionName = "0.2.15",
