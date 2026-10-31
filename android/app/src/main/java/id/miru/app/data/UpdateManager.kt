@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.18"
+        "0.2.19"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,29 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.2.19",
+                versionName = "0.2.19",
+                title = "Miru Android v0.2.19 (Detail Screen Auto-Fetch & Shared Element Expansion Motion)",
+                body = """
+                    ### Miru Android v0.2.19
+
+                    #### 🛠️ Perbaikan Deskripsi & BackHandler Trap (DetailScreen):
+                    - **Eliminasi BackHandler Rogue:** Menghapus interceptor `BackHandler(enabled = currentAnime != anime)` yang sebelumnya mereset state anime (berperilaku seperti refresh) alih-alih keluar dari halaman detail.
+                    - **Preservasi Metadata Edisi:** Pemilihan edisi anime kini mempertahankan `synopsis`, `banner`, dan `genres` secara non-destruktif.
+                    - **Otomatis Fallback Search:** Jika anime dibuka dengan sinopsis kosong/belum termuat, sistem secara otomatis melakukan fetch detail lengkap di background.
+
+                    #### 🏷️ Koreksi Icon Hero Carousel (HeroBannerItem):
+                    - Mengganti icon bookmark menjadi `Icons.Default.Info` pada tombol sekunder berlabel "Detail".
+
+                    #### ✨ Transisi Layar Shared-Element-Like (NavTransitions):
+                    - Transisi navigasi dari Beranda ke Halaman Detail kini menggunakan ekspansi sinematik berskala `scaleIn(0.90f) + fadeIn()` berpasangan dengan `scaleOut(1.08f) + fadeOut()`, memberikan efek ekspansi kartu yang mulus dan elegan.
+                """.trimIndent(),
+                publishedAt = "2026-10-30",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.2.19/app-release.apk",
+                apkSize = 38800000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.18",
                 versionName = "0.2.18",

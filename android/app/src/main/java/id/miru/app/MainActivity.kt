@@ -118,10 +118,7 @@ fun MainApp() {
     }
     AnimatedContent(
         targetState = screenMode,
-        transitionSpec = {
-            fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) togetherWith
-                fadeOut(spring(stiffness = Spring.StiffnessMediumLow))
-        },
+        transitionSpec = { screenModeTransition() },
         label = "screenTransition"
     ) { mode ->
         when (mode) {

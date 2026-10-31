@@ -43,25 +43,48 @@ fun DetailScreen(
     var isBookmarked by remember { mutableStateOf(false) }
     var watchedHistory by remember { mutableStateOf<WatchHistoryItem?>(null) }
     var editions by remember(currentAnime.slug) { mutableStateOf<List<AnimeEdition>>(emptyList()) }
-    var isSynopsisExpanded by remember { mutableStateOf(false) }
-    var translatedSynopsis by remember { mutableStateOf<String?>(null) }
-    var isTranslating by remember { mutableStateOf(false) }
-    var showOriginalSynopsis by remember { mutableStateOf(false) }
+    var isSynopsisExpanded by remember(currentAnime.slug) { mutableStateOf(false) }
+    var translatedSynopsis by remember(currentAnime.slug) { mutableStateOf<String?>(null) }
+    var isTranslating by remember(currentAnime.slug) { mutableStateOf(false) }
+    var showOriginalSynopsis by remember(currentAnime.slug) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    BackHandler(enabled = currentAnime != anime) { currentAnime = anime }
+    BackHandler { onBackClick() }
 
     LaunchedEffect(currentAnime.slug) {
-        ApiClient.getBookmarks().onSuccess { list -> isBookmarked = list.any { it.slug == currentAnime.slug } }
-        ApiClient.getHistory().onSuccess { list -> watchedHistory = list.firstOrNull { it.slug == currentAnime.slug } }
-        ApiClient.getAnimeEditions(currentAnime.id, currentAnime.slug).onSuccess { list ->
-            editions = list
-            if (currentAnime.id == 0L || currentAnime.episodes == null) {
-                list.firstOrNull { it.isCurrent }?.let { ed ->
-                    currentAnime = ed.toAnimeCard()
-                    ApiClient.getHistory().onSuccess { hList ->
-                        watchedHistory = hList.firstOrNull { h -> h.slug == ed.slug }
+        launch { ApiClient.getBookmarks().onSuccess { list -> isBookmarked = list.any { it.slug == currentAnime.slug } } }
+        launch { ApiClient.getHistory().onSuccess { list -> watchedHistory = list.firstOrNull { it.slug == currentAnime.slug } } }
+        launch {
+            ApiClient.getAnimeEditions(currentAnime.id, currentAnime.slug).onSuccess { list ->
+                editions = list
+                if (currentAnime.id == 0L || currentAnime.episodes == null) {
+                    list.firstOrNull { it.isCurrent }?.let { ed ->
+                        currentAnime = currentAnime.copy(
+                            id = if (currentAnime.id > 0L) currentAnime.id else ed.id, idMal = currentAnime.idMal ?: ed.idMal,
+                            score = currentAnime.score ?: ed.score, episodes = ed.episodes ?: currentAnime.episodes,
+                            episodesReleased = ed.episodesReleased ?: currentAnime.episodesReleased,
+                            status = ed.status ?: currentAnime.status, seasonYear = ed.seasonYear ?: currentAnime.seasonYear
+                        )
+                        ApiClient.getHistory().onSuccess { hList -> watchedHistory = hList.firstOrNull { h -> h.slug == ed.slug } }
+                    }
+                }
+            }
+        }
+        if (currentAnime.synopsis.isNullOrBlank()) {
+            launch {
+                val query = currentAnime.title.ifBlank { currentAnime.slug }
+                ApiClient.searchAnime(query = query, page = 1, perPage = 5).onSuccess { results ->
+                    val match = results.firstOrNull { it.id == currentAnime.id || it.slug == currentAnime.slug } ?: results.firstOrNull()
+                    if (match != null && !match.synopsis.isNullOrBlank()) {
+                        currentAnime = currentAnime.copy(
+                            synopsis = match.synopsis, banner = currentAnime.banner ?: match.banner,
+                            genres = currentAnime.genres.ifEmpty { match.genres },
+                            id = if (currentAnime.id > 0L) currentAnime.id else match.id, idMal = currentAnime.idMal ?: match.idMal,
+                            score = currentAnime.score ?: match.score, episodes = currentAnime.episodes ?: match.episodes,
+                            episodesReleased = currentAnime.episodesReleased ?: match.episodesReleased,
+                            status = currentAnime.status ?: match.status, seasonYear = currentAnime.seasonYear ?: match.seasonYear
+                        )
                     }
                 }
             }
@@ -73,8 +96,7 @@ fun DetailScreen(
     val lastProgress = watchedHistory?.progress ?: 0
     val isLastEpFinished = lastProgress >= 85
     val resumeEpisode = when {
-        totalEpisodes == 0 -> 1
-        watchedHistory == null -> 1
+        totalEpisodes == 0 || watchedHistory == null -> 1
         isLastEpFinished && lastWatchedEp < totalEpisodes -> lastWatchedEp + 1
         else -> lastWatchedEp.coerceIn(1, totalEpisodes.coerceAtLeast(1))
     }
@@ -84,10 +106,7 @@ fun DetailScreen(
     val currentSynopsis = if (showOriginalSynopsis) rawSynopsis else (translatedSynopsis ?: rawSynopsis)
 
     val scrollOffset by remember {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 1000f
-            else listState.firstVisibleItemScrollOffset.toFloat()
-        }
+        derivedStateOf { if (listState.firstVisibleItemIndex > 0) 1000f else listState.firstVisibleItemScrollOffset.toFloat() }
     }
     val parallaxOffset = (scrollOffset * 0.45f).coerceAtMost(160f)
 
@@ -95,18 +114,8 @@ fun DetailScreen(
         val willBookmark = !isBookmarked
         isBookmarked = willBookmark
         scope.launch {
-            if (willBookmark) {
-                ApiClient.addBookmark(
-                    BookmarkItem(
-                        slug = currentAnime.slug,
-                        title = currentAnime.title,
-                        poster = currentAnime.poster,
-                        type = currentAnime.status ?: "ANIME"
-                    )
-                )
-            } else {
-                ApiClient.removeBookmark(currentAnime.slug)
-            }
+            if (willBookmark) ApiClient.addBookmark(BookmarkItem(currentAnime.slug, currentAnime.title, currentAnime.poster, currentAnime.status ?: "ANIME"))
+            else ApiClient.removeBookmark(currentAnime.slug)
         }
     }
 
@@ -137,14 +146,12 @@ fun DetailScreen(
                     hasTranslation = translatedSynopsis != null,
                     showingOriginal = showOriginalSynopsis,
                     onTranslateClick = {
+                        if (currentAnime.cleanSynopsis.isNullOrBlank()) return@DetailSynopsisSection
                         if (translatedSynopsis != null) showOriginalSynopsis = !showOriginalSynopsis
                         else if (!isTranslating) {
                             isTranslating = true
                             scope.launch {
-                                ApiClient.translateText(rawSynopsis).onSuccess { tr ->
-                                    translatedSynopsis = tr
-                                    showOriginalSynopsis = false
-                                }
+                                ApiClient.translateText(rawSynopsis).onSuccess { tr -> translatedSynopsis = tr; showOriginalSynopsis = false }
                                 isTranslating = false
                             }
                         }
@@ -153,12 +160,7 @@ fun DetailScreen(
             }
 
             if (editions.size > 1) {
-                item {
-                    DetailEditionsSection(
-                        editions = editions,
-                        onEditionClick = { ed -> currentAnime = ed.toAnimeCard() }
-                    )
-                }
+                item { DetailEditionsSection(editions = editions, onEditionClick = { ed -> currentAnime = ed.toAnimeCard() }) }
             }
 
             item {
@@ -179,7 +181,7 @@ fun DetailScreen(
             scrollOffset = scrollOffset,
             resumeEpisode = resumeEpisode,
             isBookmarked = isBookmarked,
-            onBackClick = { if (currentAnime != anime) currentAnime = anime else onBackClick() },
+            onBackClick = onBackClick,
             onToggleBookmark = toggleBookmark,
             onPlayEpisodeClick = { ep -> onPlayEpisodeClick(currentAnime, ep) }
         )

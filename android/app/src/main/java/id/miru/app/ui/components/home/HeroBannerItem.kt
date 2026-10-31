@@ -186,7 +186,7 @@ fun HeroBannerItem(
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier.height(44.dp)
                 ) {
-                    Icon(Icons.Default.BookmarkBorder, null, tint = Color.White)
+                    Icon(Icons.Default.Info, null, tint = Color.White)
                     Spacer(Modifier.width(4.dp))
                     Text("Detail", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
