@@ -16,12 +16,20 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,11 +37,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.miru.app.data.ApiClient
+import id.miru.app.data.getSetting
+import id.miru.app.data.saveSetting
+import id.miru.app.ui.components.detail.DetailEpisodeChunkSelector
+import id.miru.app.ui.components.detail.DetailSortOrderButton
+import id.miru.app.ui.components.detail.calculateEpisodeChunks
+import id.miru.app.ui.components.detail.findChunkIndexForEpisode
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkBackground
 import id.miru.app.ui.theme.DarkSurface
 import id.miru.app.ui.theme.TextMuted
 import id.miru.app.ui.theme.TextPrimary
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +60,25 @@ fun PlayerEpisodeSheet(
     onDismissRequest: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var isAscending by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        ApiClient.getSetting("episode_sort_order", "asc").onSuccess { isAscending = it != "desc" }
+    }
+
+    val chunks = remember(totalEpisodes) { calculateEpisodeChunks(totalEpisodes) }
+    var selectedChunkIndex by remember(totalEpisodes, currentEpisode) {
+        mutableIntStateOf(findChunkIndexForEpisode(currentEpisode).coerceIn(0, (chunks.size - 1).coerceAtLeast(0)))
+    }
+
+    val displayedEpisodes = remember(totalEpisodes, selectedChunkIndex, isAscending) {
+        val range = if (chunks.isNotEmpty()) {
+            val chunk = chunks.getOrNull(selectedChunkIndex) ?: chunks[0]
+            chunk.start..chunk.end
+        } else 1..totalEpisodes
+        if (isAscending) range.toList() else range.reversed().toList()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -62,17 +97,34 @@ fun PlayerEpisodeSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Pilih Episode", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Text(text = "$totalEpisodes Episode", fontSize = 12.sp, color = TextMuted)
+                Column {
+                    Text(text = "Pilih Episode", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(text = "$totalEpisodes Episode", fontSize = 12.sp, color = TextMuted)
+                }
+                if (totalEpisodes > 0) {
+                    DetailSortOrderButton(
+                        isAscending = isAscending,
+                        onToggleSortOrder = { asc ->
+                            isAscending = asc
+                            scope.launch { ApiClient.saveSetting("episode_sort_order", if (asc) "asc" else "desc") }
+                        }
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            if (chunks.size > 1) {
+                Spacer(modifier = Modifier.height(12.dp))
+                DetailEpisodeChunkSelector(
+                    chunks = chunks,
+                    selectedChunkIndex = selectedChunkIndex,
+                    onChunkSelected = { selectedChunkIndex = it.index }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             if (totalEpisodes == 0) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                     Text(text = "Belum ada episode yang dirilis.", color = TextMuted, fontSize = 13.sp)
                 }
             } else {
@@ -83,8 +135,7 @@ fun PlayerEpisodeSheet(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     modifier = Modifier.heightIn(max = 280.dp)
                 ) {
-                    items(totalEpisodes) { idx ->
-                        val ep = idx + 1
+                    items(displayedEpisodes, key = { it }) { ep ->
                         val isSelected = ep == currentEpisode
                         Box(
                             modifier = Modifier

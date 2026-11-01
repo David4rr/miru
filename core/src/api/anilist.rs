@@ -118,7 +118,7 @@ pub fn compute_episodes_released(
     }
 }
 
-fn parse_media_item(m: &Value) -> Option<AnimeCard> {
+pub fn parse_media_item(m: &Value) -> Option<AnimeCard> {
     let id = m.get("id")?.as_i64()?;
     let id_mal = m.get("idMal").and_then(|v| v.as_i64());
     let title_obj = m.get("title")?;
@@ -227,9 +227,9 @@ pub async fn get_mal_id_by_anilist_id(anilist_id: i64) -> Result<Option<i64>> {
 }
 
 const HOME_QUERY: &str = r#"
-query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd: Int) {
+query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd: Int, $isAdult: Boolean) {
   trending: Page(page: 1, perPage: 10) {
-    media(sort: TRENDING_DESC, type: ANIME) {
+    media(sort: TRENDING_DESC, type: ANIME, isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -238,7 +238,7 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
     }
   }
   popular: Page(page: 1, perPage: 12) {
-    media(sort: POPULARITY_DESC, type: ANIME, status: RELEASING) {
+    media(sort: POPULARITY_DESC, type: ANIME, status: RELEASING, isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -247,7 +247,7 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
     }
   }
   seasonal: Page(page: 1, perPage: 12) {
-    media(season: $season, seasonYear: $year, sort: POPULARITY_DESC, type: ANIME) {
+    media(season: $season, seasonYear: $year, sort: POPULARITY_DESC, type: ANIME, isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -268,7 +268,7 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
     }
   }
   topRated: Page(page: 1, perPage: 12) {
-    media(sort: SCORE_DESC, type: ANIME, status_in: [RELEASING, FINISHED]) {
+    media(sort: SCORE_DESC, type: ANIME, status_in: [RELEASING, FINISHED], isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -277,7 +277,7 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
     }
   }
   upcoming: Page(page: 1, perPage: 12) {
-    media(status: NOT_YET_RELEASED, sort: POPULARITY_DESC, type: ANIME) {
+    media(status: NOT_YET_RELEASED, sort: POPULARITY_DESC, type: ANIME, isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -286,7 +286,7 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
     }
   }
   allTime: Page(page: 1, perPage: 12) {
-    media(sort: POPULARITY_DESC, type: ANIME) {
+    media(sort: POPULARITY_DESC, type: ANIME, isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -298,7 +298,9 @@ query HomeCatalog($season: MediaSeason, $year: Int, $todayStart: Int, $todayEnd:
 "#;
 
 pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
-    let cached = db.get_search_cache("home_catalog_v2", 3600)?;
+    let is_safe = db.is_safe_mode();
+    let cache_key = if is_safe { "home_catalog_v2_safe" } else { "home_catalog_v2_all" };
+    let cached = db.get_search_cache(cache_key, 3600)?;
     if let Some(val) = cached {
         if let Ok(mut res) = serde_json::from_value::<HomeCatalogResponse>(val) {
             let history = db.get_history(10).unwrap_or_default();
@@ -306,7 +308,6 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
             return Ok(res);
         }
     }
-
     use chrono::{Datelike, Utc};
     const WIB_OFFSET_SECS: i64 = 7 * 3600;
     let now = Utc::now();
@@ -325,12 +326,15 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
         _ => "FALL",
     };
 
-    let variables = json!({
+    let mut variables = json!({
         "season": season,
         "year": year,
         "todayStart": today_start,
         "todayEnd": today_end
     });
+    if is_safe {
+        variables["isAdult"] = json!(false);
+    }
 
     let res = query_anilist(HOME_QUERY, variables).await?;
     let data = res.get("data").ok_or_else(|| anyhow!("Missing data in response"))?;
@@ -400,7 +404,7 @@ pub async fn fetch_home_catalog(db: &Database) -> Result<HomeCatalogResponse> {
     };
 
     if let Ok(json_res) = serde_json::to_value(&response) {
-        let _ = db.set_search_cache("home_catalog_v2", &json_res);
+        let _ = db.set_search_cache(cache_key, &json_res);
     }
 
     Ok(response)
@@ -539,9 +543,9 @@ pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
 }
 
 const SEARCH_QUERY: &str = r#"
-query SearchAnime($search: String, $page: Int, $perPage: Int) {
+query SearchAnime($search: String, $page: Int, $perPage: Int, $isAdult: Boolean) {
   Page(page: $page, perPage: $perPage) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: $isAdult) {
       id idMal status episodes averageScore seasonYear genres bannerImage
       title { romaji english }
       coverImage { large }
@@ -553,22 +557,25 @@ query SearchAnime($search: String, $page: Int, $perPage: Int) {
 "#;
 
 pub async fn search_anime(query: &str, page: i32, per_page: i32, db: &Database) -> Result<Vec<AnimeCard>> {
-    let cache_key = format!("search:{}:{}:{}", query.trim().to_lowercase(), page, per_page);
+    let is_safe = db.is_safe_mode();
+    let cache_key = format!("search:{}:{}:{}:{}", query.trim().to_lowercase(), page, per_page, is_safe);
     if let Ok(Some(cached)) = db.get_search_cache(&cache_key, 3600 * 6) {
         if let Ok(cards) = serde_json::from_value::<Vec<AnimeCard>>(cached) {
             return Ok(cards);
         }
     }
 
-    let variables = json!({
+    let mut variables = json!({
         "search": query,
         "page": page,
         "perPage": per_page
     });
+    if is_safe {
+        variables["isAdult"] = json!(false);
+    }
 
     let res = query_anilist(SEARCH_QUERY, variables).await?;
     let media_arr = res.get("data")
-        .and_then(|d| d.get("Page"))
         .and_then(|p| p.get("media"))
         .and_then(|m| m.as_array())
         .cloned()

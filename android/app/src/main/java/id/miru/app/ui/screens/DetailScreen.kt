@@ -25,6 +25,7 @@ import id.miru.app.data.ApiClient
 import id.miru.app.data.BookmarkItem
 import id.miru.app.data.WatchHistoryItem
 import id.miru.app.ui.components.detail.DetailEditionsSection
+import id.miru.app.data.AudioMode
 import id.miru.app.ui.components.detail.DetailEpisodeList
 import id.miru.app.ui.components.detail.DetailHeroHeader
 import id.miru.app.ui.components.detail.DetailSynopsisSection
@@ -47,6 +48,7 @@ fun DetailScreen(
     var translatedSynopsis by remember(currentAnime.slug) { mutableStateOf<String?>(null) }
     var isTranslating by remember(currentAnime.slug) { mutableStateOf(false) }
     var showOriginalSynopsis by remember(currentAnime.slug) { mutableStateOf(false) }
+    var audioMode by remember { mutableStateOf(AudioMode.SUB) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -132,7 +134,9 @@ fun DetailScreen(
                     isUpcoming = currentAnime.isNotYetReleased,
                     onPlayClick = { ep -> onPlayEpisodeClick(currentAnime, ep) },
                     parallaxOffset = parallaxOffset,
-                    isContinueWatch = isContinueWatch
+                    isContinueWatch = isContinueWatch,
+                    audioMode = audioMode,
+                    onAudioModeChange = { audioMode = it }
                 )
             }
 

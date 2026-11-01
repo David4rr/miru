@@ -5,30 +5,18 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.PlaybackParameters
-import id.miru.app.data.ApiClient
-import id.miru.app.data.AnimeCard
-import id.miru.app.data.ResolvedStream
-import id.miru.app.data.SubtitleTrack
-import id.miru.app.data.WatchHistoryItem
+import id.miru.app.data.*
 import id.miru.app.ui.components.player.*
 import id.miru.app.ui.theme.DarkBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 @Composable
 fun PlayerScreen(
     anime: AnimeCard,
@@ -38,17 +26,29 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val sourceState = rememberPlayerSourceState()
     var currentEpisode by remember { mutableIntStateOf(episode) }
     var isPlaying by remember { mutableStateOf(true) }; var isBuffering by remember { mutableStateOf(true) }
     var isLoadingStream by remember { mutableStateOf(true) }; var streamErrorMessage by remember { mutableStateOf<String?>(null) }
     var currentPosition by remember { mutableLongStateOf(0L) }; var duration by remember { mutableLongStateOf(0L) }
     var areControlsVisible by remember { mutableStateOf(true) }; var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isScreenLocked by remember { mutableStateOf(false) }; var showUnlockButton by remember { mutableStateOf(false) }
-    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }; var showEpisodeSheet by remember { mutableStateOf(false) }
-    var showSubtitleSheet by remember { mutableStateOf(false) }; var activeSubtitle by remember { mutableStateOf<SubtitleTrack?>(null) }
-    var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }; var seekRippleSide by remember { mutableStateOf<String?>(null) }
+    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
+    var showEpisodeSheet by remember { mutableStateOf(false) }; var showSubtitleSheet by remember { mutableStateOf(false) }
+    var showQualitySheet by remember { mutableStateOf(false) }
+    var activeSubtitle by remember { mutableStateOf<SubtitleTrack?>(null) }
+    var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }
+    var seekRippleSide by remember { mutableStateOf<String?>(null) }
+    var videoVariants by remember { mutableStateOf<List<VideoVariant>>(emptyList()) }
+    var selectedVariant by remember { mutableStateOf<VideoVariant?>(null) }
+    var aspectRatioMode by remember { mutableStateOf(AspectRatioMode.FIT) }
+    var aspectRatioToast by remember { mutableStateOf<String?>(null) }
+    var pinchScale by remember { mutableFloatStateOf(1.0f) }
     var animeMetadata by remember(anime.slug) { mutableStateOf(anime) }
+    val isInPip = PlayerPipHelper.isInPipMode
+
     LaunchedEffect(anime.slug) {
+        sourceState.refreshProviders()
         if (anime.id == 0L || anime.episodes == null) {
             ApiClient.getAnimeEditions(anime.id, anime.slug).onSuccess { list ->
                 list.firstOrNull { it.isCurrent }?.let { animeMetadata = it.toAnimeCard() }
@@ -56,16 +56,20 @@ fun PlayerScreen(
         }
     }
     val totalEpisodes = animeMetadata.actualEpisodeCount.coerceAtLeast(currentEpisode)
-    val effectiveSlug = if (anime.slug.isNotBlank()) anime.slug else animeMetadata.slug
+    val effectiveSlug = anime.slug.ifBlank { animeMetadata.slug }
     val effectiveTitle = animeMetadata.title.ifBlank { anime.title }
     val effectivePoster = animeMetadata.poster.ifBlank { anime.poster }
     val effectiveType = animeMetadata.status ?: anime.status ?: "ANIME"
+
+    LaunchedEffect(sourceState.currentProviderId, currentEpisode, sourceState.audioMode) {
+        sourceState.refreshServers(effectiveSlug, currentEpisode)
+    }
 
     fun ping() { lastInteraction = System.currentTimeMillis(); areControlsVisible = true }
     fun saveProgress(explicit: Int? = null) = saveWatchProgressAsync(
         slug = effectiveSlug, episode = currentEpisode, currentPosition = currentPosition,
         duration = duration, explicitProgress = explicit, title = effectiveTitle,
-        poster = effectivePoster, type = effectiveType
+        poster = effectivePoster, type = effectiveType, mode = sourceState.audioMode.key
     )
 
     val exoPlayer = rememberExoPlayerWithLifecycle(
@@ -75,25 +79,23 @@ fun PlayerScreen(
         onPlaybackEnded = { saveProgress(100); if (currentEpisode < totalEpisodes) currentEpisode += 1 },
         onDisposePlayer = { saveProgress() }
     )
+    SyncPlayerPipLifecycle(exoPlayer, isPlaying, duration)
 
     fun loadStream() {
         isLoadingStream = true; isBuffering = true; streamErrorMessage = null
         scope.launch {
-            val resumeMs = fetchResumePositionMs(effectiveSlug, currentEpisode)
+            val resumeMs = fetchResumePositionMs(effectiveSlug, currentEpisode, sourceState.audioMode.key)
             prepareMediaStream(
                 slug = effectiveSlug, episode = currentEpisode, malId = animeMetadata.idMal ?: anime.idMal,
                 title = effectiveTitle, exoPlayer = exoPlayer, resumePositionMs = resumeMs,
+                mode = sourceState.audioMode.key, provider = sourceState.currentProviderId, server = sourceState.currentServerId,
                 onSuccess = { res ->
                     resolvedStream = res; isLoadingStream = false; ping()
                     activeSubtitle = res.subtitles.firstOrNull { it.default } ?: res.subtitles.firstOrNull()
                     scope.launch(Dispatchers.IO) {
                         val initProgress = if (resumeMs != null && duration > 0) ((resumeMs * 100) / duration).toInt().coerceIn(0, 100) else 0
-                        ApiClient.addHistory(
-                            WatchHistoryItem(
-                                slug = effectiveSlug, title = effectiveTitle, episode = currentEpisode,
-                                progress = initProgress, poster = effectivePoster, type = effectiveType
-                            )
-                        )
+                        ApiClient.addHistory(WatchHistoryItem(slug = effectiveSlug, title = effectiveTitle, episode = currentEpisode, mode = sourceState.audioMode.key, progress = initProgress, poster = effectivePoster, type = effectiveType))
+                        ApiClient.getVideoVariants(res.master, res.referer).onSuccess { videoVariants = it }
                     }
                 },
                 onFailure = { err -> isLoadingStream = false; isBuffering = false; streamErrorMessage = err }
@@ -102,14 +104,11 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(currentEpisode) { loadStream() }
-
     LaunchedEffect(areControlsVisible, isPlaying, isBuffering, isLoadingStream, lastInteraction) {
         if (areControlsVisible && isPlaying && !isBuffering && !isLoadingStream && streamErrorMessage == null) {
-            delay(3500)
-            areControlsVisible = false
+            delay(3500); areControlsVisible = false
         }
     }
-
     LaunchedEffect(exoPlayer, currentEpisode) {
         var tick = 0
         while (true) {
@@ -126,59 +125,69 @@ fun PlayerScreen(
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
         PlayerVideoSurface(
             exoPlayer = exoPlayer, isScreenLocked = isScreenLocked,
+            aspectRatioMode = aspectRatioMode, scale = pinchScale,
             onToggleControls = { if (areControlsVisible) areControlsVisible = false else ping() },
             onToggleUnlockButton = { showUnlockButton = !showUnlockButton },
             onDoubleTapSeek = { isLeft ->
                 val delta = if (isLeft) -10_000 else 10_000
                 exoPlayer.seekTo((exoPlayer.currentPosition + delta).coerceIn(0, duration))
-                seekRippleSide = if (isLeft) "left" else "right"
-                ping(); scope.launch { delay(600); seekRippleSide = null }
-            }
+                seekRippleSide = if (isLeft) "left" else "right"; ping()
+                scope.launch { delay(600); seekRippleSide = null }
+            },
+            onDoubleTapResetZoom = { pinchScale = 1.0f; ping() }
         )
-        PlayerGestureOverlay(false, 50, false, 50, seekRippleSide)
 
-
-        PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; ping() }, modifier = Modifier.align(Alignment.Center))
-
-        if (!isScreenLocked) {
-            PlayerControlsOverlay(
-                isVisible = areControlsVisible, title = anime.title, episode = currentEpisode,
-                onToggleLock = { isScreenLocked = true; areControlsVisible = false; showUnlockButton = true },
-                onBackClick = { saveProgress(); exoPlayer.stop(); onBackClick() },
-                isPlaying = isPlaying, isBuffering = isBuffering, isLoadingStream = isLoadingStream,
-                hasPreviousEpisode = currentEpisode > 1,
-                hasNextEpisode = currentEpisode < totalEpisodes, errorMessage = streamErrorMessage,
-                onRetryClick = { loadStream() },
-                onPlayPauseClick = { if (isPlaying) exoPlayer.pause() else exoPlayer.play(); ping() },
-                onPreviousEpisodeClick = { if (currentEpisode > 1) currentEpisode -= 1; ping() },
-                onRewind10Click = { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000).coerceAtLeast(0)); ping() },
-                onForward10Click = { exoPlayer.seekTo((exoPlayer.currentPosition + 10_000).coerceAtMost(duration)); ping() },
-                onNextEpisodeClick = { if (currentEpisode < totalEpisodes) currentEpisode += 1; ping() },
-                currentPosition = currentPosition, duration = duration, playbackSpeed = playbackSpeed,
-                onSeek = { target -> exoPlayer.seekTo(target); ping() },
-                onCycleSpeed = {
-                    playbackSpeed = cycleNextSpeed(playbackSpeed)
-                    exoPlayer.playbackParameters = PlaybackParameters(playbackSpeed)
-                    ping()
-                },
-                isSubtitleActive = activeSubtitle != null,
-                onOpenSubtitleSheet = { showSubtitleSheet = true },
-                onOpenEpisodeSheet = { showEpisodeSheet = true }, onBackgroundClick = { areControlsVisible = false }
-            )
-        }
-
-        if (showEpisodeSheet) {
-            PlayerEpisodeSheet(totalEpisodes = totalEpisodes, currentEpisode = currentEpisode, onSelectEpisode = { ep -> currentEpisode = ep }, onDismissRequest = { showEpisodeSheet = false })
-        }
-        if (showSubtitleSheet) {
-            PlayerSubtitleSheet(
-                subtitles = resolvedStream?.subtitles ?: emptyList(),
-                selectedSubtitle = activeSubtitle,
-                onSelectSubtitle = { sub ->
-                    activeSubtitle = sub
-                    resolvedStream?.let { res -> switchSubtitleTrack(exoPlayer, res, sub) }
-                },
-                onDismissRequest = { showSubtitleSheet = false }
+        if (!isInPip) {
+            PlayerGestureOverlay(false, 50, false, 50, seekRippleSide, pinchScale, { pinchScale = it }, aspectRatioToast)
+            PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; ping() }, modifier = Modifier.align(Alignment.Center))
+            if (!isScreenLocked) {
+                PlayerControlsOverlay(
+                    isVisible = areControlsVisible, title = anime.title, episode = currentEpisode,
+                    isSubtitleActive = activeSubtitle != null, aspectRatioMode = aspectRatioMode,
+                    onOpenSubtitleSheet = { showSubtitleSheet = true },
+                    onOpenQualitySheet = { showQualitySheet = true },
+                    onOpenSourceSheet = { sourceState.showSourceSheet = true },
+                    onToggleAspectRatio = {
+                        aspectRatioMode = aspectRatioMode.next()
+                        aspectRatioToast = aspectRatioMode.toastMessage
+                        pinchScale = 1.0f; ping()
+                        scope.launch { delay(2000); aspectRatioToast = null }
+                    },
+                    onEnterPip = { (context as? Activity)?.let { PlayerPipHelper.enterPictureInPicture(it, isPlaying, PlayerPipHelper.videoWidth, PlayerPipHelper.videoHeight) } },
+                    onToggleLock = { isScreenLocked = true; areControlsVisible = false; showUnlockButton = true },
+                    onBackClick = { saveProgress(); exoPlayer.stop(); onBackClick() },
+                    isPlaying = isPlaying, isBuffering = isBuffering, isLoadingStream = isLoadingStream,
+                    hasPreviousEpisode = currentEpisode > 1, hasNextEpisode = currentEpisode < totalEpisodes,
+                    errorMessage = streamErrorMessage, onRetryClick = { loadStream() },
+                    onPlayPauseClick = { if (isPlaying) exoPlayer.pause() else exoPlayer.play(); ping() },
+                    onPreviousEpisodeClick = { if (currentEpisode > 1) currentEpisode -= 1; ping() },
+                    onRewind10Click = { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000).coerceAtLeast(0)); ping() },
+                    onForward10Click = { exoPlayer.seekTo((exoPlayer.currentPosition + 10_000).coerceAtMost(duration)); ping() },
+                    onNextEpisodeClick = { if (currentEpisode < totalEpisodes) currentEpisode += 1; ping() },
+                    currentPosition = currentPosition, duration = duration, playbackSpeed = playbackSpeed,
+                    onSeek = { target -> exoPlayer.seekTo(target); ping() },
+                    onCycleSpeed = { playbackSpeed = cycleNextSpeed(playbackSpeed); exoPlayer.playbackParameters = PlaybackParameters(playbackSpeed); ping() },
+                    onOpenEpisodeSheet = { showEpisodeSheet = true }, onBackgroundClick = { areControlsVisible = false }
+                )
+            }
+            PlayerSheetsOverlay(
+                showEpisodeSheet = showEpisodeSheet, onDismissEpisodeSheet = { showEpisodeSheet = false },
+                totalEpisodes = totalEpisodes, currentEpisode = currentEpisode, onSelectEpisode = { currentEpisode = it },
+                showSubtitleSheet = showSubtitleSheet, onDismissSubtitleSheet = { showSubtitleSheet = false },
+                subtitles = resolvedStream?.subtitles ?: emptyList(), selectedSubtitle = activeSubtitle,
+                onSelectSubtitle = { sub -> activeSubtitle = sub; resolvedStream?.let { res -> switchSubtitleTrack(exoPlayer, res, sub) } },
+                showQualitySheet = showQualitySheet, onDismissQualitySheet = { showQualitySheet = false },
+                variants = videoVariants, selectedVariant = selectedVariant,
+                onSelectVariant = { v -> selectedVariant = v; selectVideoTrackQuality(exoPlayer, v?.width ?: 0, v?.height ?: 0) },
+                animeTitle = effectiveTitle, slug = effectiveSlug,
+                onSubtitleOffsetApplied = { ms -> activeSubtitle?.withOffset(ms)?.let { updated -> activeSubtitle = updated; resolvedStream?.let { res -> switchSubtitleTrack(exoPlayer, res, updated) } } },
+                showSourceSheet = sourceState.showSourceSheet, onDismissSourceSheet = { sourceState.showSourceSheet = false },
+                providers = sourceState.providers, currentProviderId = sourceState.currentProviderId,
+                currentServerId = sourceState.currentServerId, servers = sourceState.servers,
+                audioMode = sourceState.audioMode,
+                onProviderChange = { newProv -> sourceState.currentProviderId = newProv; sourceState.currentServerId = null; loadStream() },
+                onServerSelect = { newSrv -> sourceState.currentServerId = newSrv; loadStream() },
+                onAudioModeChange = { newMode -> sourceState.audioMode = newMode; loadStream() }
             )
         }
     }

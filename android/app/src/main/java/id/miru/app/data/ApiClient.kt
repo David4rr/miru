@@ -11,10 +11,10 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-    private const val BASE_URL = "http://127.0.0.1:8767"
-    private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
+    internal const val BASE_URL = "http://127.0.0.1:8767"
+    internal val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
-    private val client = OkHttpClient.Builder()
+    internal val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(35, TimeUnit.SECONDS)
         .writeTimeout(15, TimeUnit.SECONDS)
@@ -79,14 +79,18 @@ object ApiClient {
         ep: Int,
         mode: String = "sub",
         malId: Long? = null,
-        title: String? = null
+        title: String? = null,
+        provider: String? = null,
+        server: String? = null
     ): Result<ResolvedStream> = withContext(Dispatchers.IO) {
         runCatching {
             val encodedSlug = java.net.URLEncoder.encode(slug, "UTF-8")
             val malQuery = if (malId != null && malId > 0) "&mal_id=$malId" else ""
             val titleQuery = if (!title.isNullOrBlank()) "&title=${java.net.URLEncoder.encode(title, "UTF-8")}" else ""
+            val provQuery = if (!provider.isNullOrBlank()) "&provider=${java.net.URLEncoder.encode(provider, "UTF-8")}" else ""
+            val srvQuery = if (!server.isNullOrBlank()) "&server=${java.net.URLEncoder.encode(server, "UTF-8")}" else ""
             val request = Request.Builder()
-                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode$malQuery$titleQuery")
+                .url("$BASE_URL/api/stream/resolve?slug=$encodedSlug&ep=$ep&mode=$mode$malQuery$titleQuery$provQuery$srvQuery")
                 .get()
                 .build()
 
@@ -141,8 +145,45 @@ object ApiClient {
                     proxiedMasterUrl = run {
                         val raw = data.optString("proxied_master_url")
                         if (raw.startsWith("http://") || raw.startsWith("https://")) raw else "$BASE_URL$raw"
-                    }
+                    },
+                    provider = data.optString("provider", "hianime")
                 )
+            }
+        }
+    }
+
+    suspend fun getVideoVariants(masterUrl: String, referer: String? = null): Result<List<VideoVariant>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedUrl = java.net.URLEncoder.encode(masterUrl, "UTF-8")
+            val refParam = if (!referer.isNullOrBlank()) "&referer=" + java.net.URLEncoder.encode(referer, "UTF-8") else ""
+            val request = Request.Builder()
+                .url("$BASE_URL/api/stream/variants?url=$encodedUrl$refParam")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: ${resp.message}")
+                val bodyStr = resp.body?.string().orEmpty()
+                val json = JSONObject(bodyStr)
+                if (!json.optBoolean("success", false)) {
+                    throw Exception(json.optString("error", "Failed to fetch video variants"))
+                }
+                val dataArr = json.optJSONArray("data") ?: JSONArray()
+                val list = mutableListOf<VideoVariant>()
+                for (i in 0 until dataArr.length()) {
+                    val obj = dataArr.optJSONObject(i) ?: continue
+                    list.add(
+                        VideoVariant(
+                            resolution = obj.optString("resolution"),
+                            width = obj.optInt("width"),
+                            height = obj.optInt("height"),
+                            bandwidth = obj.optLong("bandwidth"),
+                            codecs = if (obj.has("codecs") && !obj.isNull("codecs")) obj.optString("codecs") else null,
+                            url = obj.optString("url")
+                        )
+                    )
+                }
+                list
             }
         }
     }
@@ -264,7 +305,8 @@ object ApiClient {
         duration: Int,
         title: String? = null,
         poster: String? = null,
-        type: String? = null
+        type: String? = null,
+        mode: String = "sub"
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val json = JSONObject().apply {
@@ -272,6 +314,7 @@ object ApiClient {
                 put("episode", episode)
                 put("progress", progress)
                 put("duration", duration)
+                put("mode", mode)
                 title?.let { put("title", it) }
                 poster?.let { put("poster", it) }
                 type?.let { put("type", it) }
@@ -284,10 +327,10 @@ object ApiClient {
             client.newCall(request).execute().close()
         }
     }
-    suspend fun getProgress(slug: String, episode: Int): Result<WatchProgressItem?> = withContext(Dispatchers.IO) {
+    suspend fun getProgress(slug: String, episode: Int, mode: String = "sub"): Result<WatchProgressItem?> = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder()
-                .url("$BASE_URL/api/progress?slug=$slug&ep=$episode")
+                .url("$BASE_URL/api/progress?slug=$slug&ep=$episode&mode=$mode")
                 .get()
                 .build()
             client.newCall(request).execute().use { resp ->
@@ -436,7 +479,7 @@ object ApiClient {
         return list
     }
 
-    private fun parseAnimeCards(array: JSONArray?): List<AnimeCard> {
+    internal fun parseAnimeCards(array: JSONArray?): List<AnimeCard> {
         if (array == null) return emptyList()
         val list = mutableListOf<AnimeCard>()
         for (i in 0 until array.length()) {

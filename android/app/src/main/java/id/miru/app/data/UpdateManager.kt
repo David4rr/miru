@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.2.19"
+        "0.3.0"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,40 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.0",
+                versionName = "0.3.0",
+                title = "Miru Android v0.3.0 (Upstream Tatap Tables 1-4 Port: PiP, Quality Selector, Multi-Provider & AI Subtitles)",
+                body = """
+                    ### Miru Android v0.3.0 (Major Upstream Feature Release)
+
+                    #### 📺 Player UX & Display (Tabel 3):
+                    - **Native Android Picture-in-Picture (PiP):** Kontrol interaktif RemoteAction (Play, Pause, Rewind 10s, Forward 10s) dan auto-PiP saat navigasi keluar.
+                    - **HLS Variant Parser & Quality Sheet:** Parsing manifest `#EXT-X-STREAM-INF` dengan selector resolusi instan (1080p, 720p, 480p, 360p, Otomatis ABR) tanpa freeze buffer.
+                    - **Aspect Ratio & Pinch-to-Zoom:** Pilihan mode Fit (16:9), Fill (Stretch), Zoom (Crop Notch), dan gestur cubit 2-jari (1.0x - 3.0x).
+
+                    #### 🧭 Navigasi Katalog & Detail (Tabel 4):
+                    - **Episode Range Chunking:** Tab navigasi horizontal (1-100, 101-200) untuk anime berdurasi panjang (>100 episode).
+                    - **Sort Order Toggle:** Pengurutan episode Terlama (1 -> N) atau Terbaru (N -> 1) persisten di SQLite.
+                    - **Advanced AniList Filter & Safe Mode:** Filter GraphQL dinamis (genre, season, format, status) dan toggle Safe Mode 18+.
+                    - **Developer Diagnostic Terminal:** Terminal perintah internal (ping, stats, cache clear, config) dengan proteksi command whitelist.
+
+                    #### 📝 Subtitle & Fansub Engine (Tabel 1):
+                    - **Multi-Source Subtitles:** Integrasi AnimeTosho torrent attachments dan OpenSubtitles REST API v2 dengan ad/watermark cleaner.
+                    - **Sanitasi ASS/SSA & Cue Merger:** Pembersihan tag override dan penggabungan teks dialog simultan (<200ms) tanpa kedipan.
+                    - **AI Fansub BYOK:** Penerjemah batch paralel (Gemini, Groq, OpenAI, Ollama) bergaya fansub anime Indonesia.
+                    - **Universal Lexicon, Bilingual & Offset Slider:** Glosarium istilah anime, subtitle dwibahasa (ID+EN), dan slider timing offset (-10s s/d +10s).
+
+                    #### 🌐 Multi-Provider Streaming & Audio (Tabel 2):
+                    - **Scraper Rust Native:** Integrasi provider AniChan dan Otakudesu berdampingan dengan HiAnime.
+                    - **Isolasi DUB vs SUB:** Pemisahan riwayat tonton dan cache stream untuk audio SUB dan DUB.
+                    - **Live Source Switcher:** Penggantian provider dan server mirror langsung saat video diputar.
+                """.trimIndent(),
+                publishedAt = "2026-11-01",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.0/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.2.19",
                 versionName = "0.2.19",

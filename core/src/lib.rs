@@ -7,7 +7,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    routing::{delete, get},
+    routing::{delete, get, post},
     Json, Router,
 };
 use db::{BookmarkItem, Database, WatchHistoryItem};
@@ -40,8 +40,18 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/search", get(search_handler))
         .route("/api/anime/editions", get(editions_handler))
         .route("/api/stream/resolve", get(resolve_stream_handler))
+        .route("/api/stream/providers", get(stream_providers_get_handler))
+        .route("/api/stream/providers/default", post(stream_providers_default_post_handler))
+        .route("/api/stream/servers", get(stream_servers_handler))
+        .route("/api/stream/variants", get(stream_variants_handler))
         .route("/api/player/video", get(proxy::proxy_video_handler))
         .route("/api/player/sub", get(sub_handler))
+        .route("/api/subtitles/sources/animetosho", get(api::sub::animetosho::animetosho_sources_handler))
+        .route("/api/subtitles/sources/opensubtitles", get(api::sub::opensubtitles::opensubtitles_sources_handler))
+        .route("/api/subtitles/ai/fansub", post(api::sub::ai_byok::ai_fansub_handler))
+        .route("/api/subtitles/ai/providers", get(api::sub::ai_byok::ai_providers_get_handler).post(api::sub::ai_byok::ai_providers_post_handler))
+        .route("/api/subtitles/lexicon", get(api::sub::lexicon::lexicon_get_handler).post(api::sub::lexicon::lexicon_post_handler).delete(api::sub::lexicon::lexicon_delete_handler))
+        .route("/api/subtitles/offset", get(api::sub::offset_get_handler).post(api::sub::offset_post_handler))
         .route("/api/player/skip_times", get(skip_times_handler))
         .route("/api/translate", get(translate_handler))
         .route("/api/history", get(get_history_handler).post(add_history_handler).delete(clear_history_handler))
@@ -49,6 +59,12 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/progress", get(get_progress_handler).post(save_progress_handler))
         .route("/api/bookmarks", get(get_bookmarks_handler).post(add_bookmark_handler))
         .route("/api/bookmarks/:slug", delete(remove_bookmark_handler))
+        .route("/api/catalog/filters", get(api::catalog::catalog_filters_handler))
+        .route("/api/catalog/browse", get(api::catalog::catalog_browse_handler))
+        .route("/api/settings/safemode", get(get_safemode_handler).post(set_safemode_handler))
+        .route("/api/settings/safe_mode", get(get_safemode_handler).post(set_safemode_handler))
+        .route("/api/settings/:key", get(get_setting_handler).post(set_setting_handler))
+        .route("/api/terminal/exec", post(api::terminal::terminal_exec_handler))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -64,6 +80,68 @@ async fn ping_handler() -> Json<serde_json::Value> {
 async fn version_handler() -> Json<serde_json::Value> {
     Json(json!({ "version": env!("CARGO_PKG_VERSION") }))
 }
+#[derive(Debug, Deserialize)]
+struct SafeModePayload {
+    safe_mode: Option<bool>,
+    enabled: Option<bool>,
+    value: Option<bool>,
+}
+
+async fn get_safemode_handler(State(state): State<AppState>) -> Response {
+    let is_safe = state.db.is_safe_mode();
+    Json(json!({ "success": true, "safe_mode": is_safe, "enabled": is_safe })).into_response()
+}
+
+async fn set_safemode_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<SafeModePayload>,
+) -> Response {
+    let is_safe = payload.safe_mode
+        .or(payload.enabled)
+        .or(payload.value)
+        .unwrap_or(true);
+    let val_str = if is_safe { "true" } else { "false" };
+    match state.db.set_setting("safe_mode", val_str) {
+        Ok(_) => Json(json!({ "success": true, "safe_mode": is_safe, "enabled": is_safe })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct SettingPayload {
+    value: String,
+}
+
+async fn get_setting_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+) -> Response {
+    match state.db.get_setting(&key) {
+        Ok(val) => Json(json!({ "success": true, "key": key, "value": val })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+async fn set_setting_handler(
+    State(state): State<AppState>,
+    Path(key): Path<String>,
+    Json(payload): Json<SettingPayload>,
+) -> Response {
+    match state.db.set_setting(&key, &payload.value) {
+        Ok(_) => Json(json!({ "success": true, "key": key, "value": payload.value })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
 
 async fn home_handler(State(state): State<AppState>) -> Response {
     match api::anilist::fetch_home_catalog(&state.db).await {
@@ -113,6 +191,8 @@ struct ResolveParams {
     slug: String,
     ep: i32,
     mode: Option<String>,
+    provider: Option<String>,
+    server: Option<String>,
     mal_id: Option<i64>,
     title: Option<String>,
 }
@@ -128,10 +208,115 @@ async fn resolve_stream_handler(
         ).into_response();
     }
     let mode = params.mode.unwrap_or_else(|| "sub".to_string());
-    match api::stream::resolve_stream(&params.slug, params.ep, &mode, params.mal_id, params.title.as_deref(), &state.db).await {
+    match api::stream::resolve_stream(
+        &params.slug,
+        params.ep,
+        &mode,
+        params.provider.as_deref(),
+        params.server.as_deref(),
+        params.mal_id,
+        params.title.as_deref(),
+        &state.db,
+    ).await {
         Ok(stream) => Json(json!({ "success": true, "data": stream })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+async fn stream_providers_get_handler(State(state): State<AppState>) -> Response {
+    let default_id = api::providers::get_default_provider_id(&state.db);
+    let providers = api::providers::get_all_providers(&default_id);
+    Json(json!({ "success": true, "data": providers })).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+struct SetDefaultProviderPayload {
+    provider: Option<String>,
+    id: Option<String>,
+}
+
+async fn stream_providers_default_post_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<SetDefaultProviderPayload>,
+) -> Response {
+    let target = payload.provider.or(payload.id).unwrap_or_default();
+    if target.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "success": false, "error": "Missing provider id" })),
+        ).into_response();
+    }
+    match api::providers::set_default_provider_id(&state.db, target.trim()) {
+        Ok(_) => Json(json!({ "success": true, "default_provider": target.trim() })).into_response(),
+        Err(err) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamServersParams {
+    provider: Option<String>,
+    slug: String,
+    ep: i32,
+    mode: Option<String>,
+}
+
+async fn stream_servers_handler(
+    State(state): State<AppState>,
+    Query(params): Query<StreamServersParams>,
+) -> Response {
+    let default_id = api::providers::get_default_provider_id(&state.db);
+    let provider_id = params.provider.as_deref().unwrap_or(&default_id);
+    let provider = match api::providers::get_provider(provider_id) {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "success": false, "error": format!("Unknown provider: {}", provider_id) })),
+            ).into_response();
+        }
+    };
+    let mode = params.mode.as_deref().unwrap_or("sub");
+    match provider.get_servers(&params.slug, params.ep, mode).await {
+        Ok(servers) => Json(json!({ "success": true, "data": servers })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "success": false, "error": err.to_string() })),
+        ).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamVariantsParams {
+    url: String,
+    referer: Option<String>,
+}
+
+async fn stream_variants_handler(Query(params): Query<StreamVariantsParams>) -> Response {
+    if params.url.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "success": false, "error": "Missing url parameter" })),
+        ).into_response();
+    }
+    if let Err(err) = crate::net::validator::is_safe_remote_url(&params.url) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "success": false, "error": format!("Disallowed URL: {}", err) })),
+        ).into_response();
+    }
+    match proxy::fetch_hls_text(&params.url, params.referer.as_deref()).await {
+        Ok(text) => {
+            let variants = proxy::parse_hls_variants(&text);
+            Json(json!({ "success": true, "data": variants })).into_response()
+        }
+        Err(err) => (
+            StatusCode::BAD_GATEWAY,
             Json(json!({ "success": false, "error": err.to_string() })),
         ).into_response(),
     }
@@ -186,14 +371,26 @@ async fn editions_handler(
 struct SubParams {
     url: String,
     mode: Option<String>,
+    offset_ms: Option<i64>,
 }
 
 async fn sub_handler(
     State(state): State<AppState>,
     Query(params): Query<SubParams>,
 ) -> Response {
+    if let Err(err) = crate::net::validator::is_safe_remote_url(&params.url) {
+        return (
+            StatusCode::BAD_REQUEST,
+            [
+                (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
+                (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+            ],
+            format!("Disallowed subtitle target: {}", err),
+        ).into_response();
+    }
     let mode = params.mode.unwrap_or_else(|| "gtx+".to_string());
-    let vtt_text = match api::sub::get_or_translate_vtt(&params.url, &mode, &state.db).await {
+    let offset_ms = params.offset_ms.unwrap_or(0);
+    let vtt_text = match api::sub::get_or_translate_vtt(&params.url, &mode, offset_ms, &state.db).await {
         Ok(t) => t,
         Err(_) => "WEBVTT\n\n".to_string(),
     };
@@ -298,6 +495,7 @@ async fn clear_history_handler(State(state): State<AppState>) -> Response {
 struct ProgressPayload {
     slug: String,
     episode: i32,
+    mode: Option<String>,
     progress: i32,
     duration: Option<i32>,
     title: Option<String>,
@@ -314,6 +512,7 @@ async fn save_progress_handler(
     match state.db.save_progress(
         &payload.slug,
         payload.episode,
+        payload.mode.as_deref(),
         payload.progress,
         duration,
         payload.title.as_deref(),
@@ -332,13 +531,14 @@ async fn save_progress_handler(
 struct GetProgressParams {
     slug: String,
     ep: i32,
+    mode: Option<String>,
 }
 
 async fn get_progress_handler(
     State(state): State<AppState>,
     Query(params): Query<GetProgressParams>,
 ) -> Response {
-    match state.db.get_progress(&params.slug, params.ep) {
+    match state.db.get_progress(&params.slug, params.ep, params.mode.as_deref()) {
         Ok(item) => Json(json!({ "success": true, "data": item })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,

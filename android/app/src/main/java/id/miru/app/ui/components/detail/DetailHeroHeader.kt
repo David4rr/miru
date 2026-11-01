@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import id.miru.app.data.AnimeCard
+import id.miru.app.data.AudioMode
 import id.miru.app.ui.components.OrangeButton
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkBackground
@@ -39,7 +40,10 @@ fun DetailHeroHeader(
     onPlayClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
     parallaxOffset: Float = 0f,
-    isContinueWatch: Boolean = false
+    isContinueWatch: Boolean = false,
+    audioMode: AudioMode = AudioMode.SUB,
+    onAudioModeChange: (AudioMode) -> Unit = {},
+    hasDub: Boolean = true
 ) {
     Box(modifier = modifier.fillMaxWidth().height(270.dp).clipToBounds()) {
         AsyncImage(
@@ -116,7 +120,18 @@ fun DetailHeroHeader(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        if (!isUpcoming) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Audio: ${audioMode.label}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
+                DetailDubSubToggle(currentMode = audioMode, onModeSelected = onAudioModeChange, hasDub = hasDub)
+            }
+        }
+        Spacer(modifier = Modifier.height(14.dp))
 
         if (isUpcoming) {
             Row(

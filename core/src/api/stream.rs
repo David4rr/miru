@@ -1,22 +1,9 @@
+use crate::api::providers::{self, StreamProvider};
 use crate::db::{CachedEpisode, Database, SkipInterval, SubtitleTrack};
 use anyhow::{anyhow, Result};
-use base64::prelude::*;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::LazyLock;
-use std::time::Duration;
-
-const HI_BASE: &str = "https://hianime.at";
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
-    Client::builder()
-        .user_agent(USER_AGENT)
-        .timeout(Duration::from_secs(8))
-        .build()
-        .expect("Failed to initialize reqwest client")
-});
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ResolvedStream {
@@ -26,6 +13,7 @@ pub struct ResolvedStream {
     pub master: String,
     pub referer: String,
     pub server: String,
+    pub provider: String,
     pub subtitles: Vec<SubtitleTrack>,
     pub intro: SkipInterval,
     pub outro: SkipInterval,
@@ -55,40 +43,23 @@ pub fn try_extract_anilist_id_from_slug(slug: &str) -> Option<i64> {
     None
 }
 
-fn normalize_sub_lang(label: &str, raw_lang: &str) -> String {
+pub fn normalize_sub_lang(label: &str, raw_lang: &str) -> String {
     let lb = label.to_lowercase();
-    if lb.contains("indonesia") {
-        "id".to_string()
-    } else if lb.contains("english") {
-        "en".to_string()
-    } else if lb.contains("arabic") || lb.contains("العربية") {
-        "ar".to_string()
-    } else if lb.contains("spanish") || lb.contains("español") || lb.contains("espanol") {
-        "es".to_string()
-    } else if lb.contains("portuguese") || lb.contains("português") || lb.contains("portugues") {
-        "pt".to_string()
-    } else if lb.contains("french") || lb.contains("français") || lb.contains("francais") {
-        "fr".to_string()
-    } else if lb.contains("german") || lb.contains("deutsch") {
-        "de".to_string()
-    } else if lb.contains("italian") || lb.contains("italiano") {
-        "it".to_string()
-    } else if lb.contains("russian") || lb.contains("русский") {
-        "ru".to_string()
-    } else if lb.contains("japanese") || lb.contains("日本語") {
-        "ja".to_string()
-    } else if lb.contains("chinese") || lb.contains("中文") {
-        "zh".to_string()
-    } else if lb.contains("vietnamese") || lb.contains("tiếng việt") {
-        "vi".to_string()
-    } else if lb.contains("thai") || lb.contains("ไทย") {
-        "th".to_string()
-    } else {
-        raw_lang.to_string()
+    const PATTERNS: &[(&str, &str)] = &[
+        ("indonesia", "id"), ("english", "en"), ("arabic", "ar"), ("العربية", "ar"),
+        ("spanish", "es"), ("español", "es"), ("portuguese", "pt"), ("french", "fr"),
+        ("german", "de"), ("italian", "it"), ("russian", "ru"), ("japanese", "ja"),
+        ("chinese", "zh"), ("vietnamese", "vi"), ("thai", "th"),
+    ];
+    for &(pat, code) in PATTERNS {
+        if lb.contains(pat) {
+            return code.to_string();
+        }
     }
+    raw_lang.to_string()
 }
 
-fn sort_subtitles(subs: &mut [SubtitleTrack]) {
+pub fn sort_subtitles(subs: &mut [SubtitleTrack]) {
     subs.sort_by(|a, b| {
         let a_id = a.lang == "id" || a.label.to_lowercase().contains("indonesia");
         let b_id = b.lang == "id" || b.label.to_lowercase().contains("indonesia");
@@ -104,206 +75,30 @@ fn sort_subtitles(subs: &mut [SubtitleTrack]) {
     });
 }
 
-fn deobfuscate_zoko(html: &str) -> Result<(String, Vec<SubtitleTrack>)> {
-    let re_p = regex::Regex::new(r#"window\.__P="([^"]+)""#)?;
-    let blob = re_p
-        .captures(html)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str())
-        .ok_or_else(|| anyhow!("window.__P not found in embed page"))?;
-
-    let decoded = BASE64_STANDARD.decode(blob)?;
-    const KEY: &[u8] = b"otaku-embed-v1";
-    let mut xored = Vec::with_capacity(decoded.len());
-    for (i, b) in decoded.iter().enumerate() {
-        xored.push(b ^ KEY[i % KEY.len()]);
+fn process_subtitles(subtitles: &mut Vec<SubtitleTrack>, db: &Database) {
+    for s in subtitles.iter_mut() {
+        s.lang = normalize_sub_lang(&s.label, &s.lang);
     }
 
-    let decoded_str = String::from_utf8_lossy(&xored);
-    let unquoted = urlencoding::decode(&decoded_str)?;
-    let json_val: Value = serde_json::from_str(&unquoted)?;
+    let has_indo = subtitles.iter().any(|s| {
+        let l = s.lang.to_lowercase();
+        let lb = s.label.to_lowercase();
+        l == "id" || l == "ind" || lb.contains("indonesia")
+    });
 
-    let master_src = json_val
-        .get("src")
-        .and_then(|s| s.as_str())
-        .ok_or_else(|| anyhow!("src not found in deobfuscated payload"))?
-        .to_string();
+    if !has_indo {
+        let candidate_sub = subtitles.iter().find(|s| {
+            let lb = s.label.to_lowercase();
+            let l = s.lang.to_lowercase();
+            (lb.contains("english") || l == "en")
+                && !lb.contains("arabic") && !lb.contains("french") && !lb.contains("german")
+                && !lb.contains("spanish") && !lb.contains("portuguese") && !lb.contains("russian")
+        }).or_else(|| subtitles.first()).cloned();
 
-    let mut subtitles = Vec::new();
-    if let Some(subs_arr) = json_val.get("subtitles").and_then(|s| s.as_array()) {
-        for s in subs_arr {
-            let label = s.get("label").and_then(|l| l.as_str()).unwrap_or("English").to_string();
-            let raw_lang = s.get("lang").and_then(|l| l.as_str()).unwrap_or("en").to_string();
-            let src = s.get("src").and_then(|f| f.as_str()).unwrap_or("").to_string();
-            let is_default = s.get("default").and_then(|d| d.as_bool()).unwrap_or(false);
-
-            if !src.is_empty() {
-                let lang = normalize_sub_lang(&label, &raw_lang);
-                subtitles.push(SubtitleTrack {
-                    label,
-                    lang,
-                    url: src,
-                    default: is_default,
-                });
-            }
-        }
-    }
-
-    Ok((master_src, subtitles))
-}
-
-async fn fetch_zoko_by_mal(mal_id: i64, episode: i32, mode: &str) -> Result<(String, Vec<SubtitleTrack>)> {
-    let url = format!("https://zokoanime.video/stream/mal/{}/{}/{}", mal_id, episode, mode);
-    let html = HTTP_CLIENT
-        .get(&url)
-        .header("Referer", "https://hianime.at/")
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    let (master_src, subs) = deobfuscate_zoko(&html)?;
-
-
-    Ok((master_src, subs))
-}
-
-async fn resolve_via_hianime_scraping(title: &str, episode: i32) -> Result<(String, Vec<SubtitleTrack>, String)> {
-    // Step 1: Search anime on HiAnime
-    let search_url = format!("{}/search?keyword={}", HI_BASE, urlencoding::encode(title));
-    let search_resp = HTTP_CLIENT.get(&search_url).send().await?.text().await?;
-
-    // HiAnime search results: match both /slug-12345 and /watch/slug-12345
-    let re_anime_id = regex::Regex::new(r#"href="(?:https://hianime\.at)?(?:/watch)?/[^"?/]+-(\d+)""#)?;
-    let anime_id = re_anime_id
-        .captures(&search_resp)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_string())
-        .ok_or_else(|| anyhow!("Anime not found on HiAnime for query: {}", title))?;
-
-    // Step 2: Get episode list
-    let ep_list_url = format!("{}/api/theme/episode/list/{}", HI_BASE, anime_id);
-    let ep_resp = HTTP_CLIENT.get(&ep_list_url).send().await?.json::<Value>().await?;
-    let ep_html = ep_resp
-        .get("html")
-        .and_then(|h| h.as_str())
-        .ok_or_else(|| anyhow!("Failed to get episode list HTML"))?;
-
-    // Find the episode ID matching episode number
-    let re_ep_1 = regex::Regex::new(&format!(r#"data-number="{}"[^>]*data-id="(\d+)""#, episode))?;
-    let re_ep_2 = regex::Regex::new(&format!(r#"data-id="(\d+)"[^>]*data-number="{}""#, episode))?;
-    let target_ep_id = re_ep_1
-        .captures(ep_html)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_string())
-        .or_else(|| {
-            re_ep_2
-                .captures(ep_html)
-                .and_then(|c| c.get(1))
-                .map(|m| m.as_str().to_string())
-        })
-        .ok_or_else(|| anyhow!("Episode {} not found in HiAnime episode list", episode))?;
-
-    // Step 3: Get server list
-    let servers_url = format!("{}/api/theme/episode/servers?episodeId={}", HI_BASE, target_ep_id);
-    let srv_resp = HTTP_CLIENT.get(&servers_url).send().await?.json::<Value>().await?;
-    let srv_html = srv_resp
-        .get("html")
-        .and_then(|h| h.as_str())
-        .ok_or_else(|| anyhow!("Failed to get server list HTML"))?;
-
-    // Extract data-hash attributes (base64 embed URLs)
-    let re_hash = regex::Regex::new(r#"data-hash="([^"]+)""#)?;
-    let mut embed_urls = Vec::new();
-    for cap in re_hash.captures_iter(srv_html) {
-        if let Some(h) = cap.get(1) {
-            if let Ok(decoded_bytes) = BASE64_STANDARD.decode(h.as_str()) {
-                if let Ok(decoded_url) = String::from_utf8(decoded_bytes) {
-                    embed_urls.push(decoded_url);
-                }
-            }
-        }
-    }
-
-    if embed_urls.is_empty() {
-        return Err(anyhow!("No playable streaming servers found for episode {}", episode));
-    }
-
-    // Try ZokoAnime first if present, otherwise try other servers
-    for embed_url in &embed_urls {
-        if embed_url.contains("zokoanime") {
-            if let Ok(resp) = HTTP_CLIENT.get(embed_url).header("Referer", "https://hianime.at/").send().await {
-                if let Ok(html) = resp.text().await {
-                    if let Ok((master, subs)) = deobfuscate_zoko(&html) {
-                        return Ok((master, subs, "https://zokoanime.video/".to_string()));
-                    }
-                }
-            }
-        }
-    }
-
-    // Fallback: try any embed URL with zoko deobfuscation
-    for embed_url in &embed_urls {
-        if let Ok(resp) = HTTP_CLIENT.get(embed_url).header("Referer", "https://hianime.at/").send().await {
-            if let Ok(html) = resp.text().await {
-                if let Ok((master, subs)) = deobfuscate_zoko(&html) {
-                    return Ok((master, subs, "https://zokoanime.video/".to_string()));
-                }
-            }
-        }
-    }
-
-    Err(anyhow!("Failed to decode video sources from server hashes"))
-}
-
-pub async fn resolve_stream(
-    slug: &str,
-    episode: i32,
-    mode: &str,
-    mal_id: Option<i64>,
-    title_hint: Option<&str>,
-    db: &Database,
-) -> Result<ResolvedStream> {
-    // 1. Check local SQLite cache first (TTL 2 hours)
-    if let Ok(Some(cached)) = db.get_episode_cache(slug, episode, mode, 7200) {
-        let proxied = format!(
-            "http://127.0.0.1:8767/api/player/video?url={}&referer={}",
-            urlencoding::encode(&cached.master),
-            urlencoding::encode(&cached.referer)
-        );
-
-        let mut proxied_subtitles: Vec<SubtitleTrack> = cached.subtitles.into_iter().map(|mut s| {
-            s.lang = normalize_sub_lang(&s.label, &s.lang);
-            if !s.url.starts_with("http://127.0.0.1:8767") {
-                let is_id = s.lang == "id" || s.label.to_lowercase().contains("indonesia");
-                let sub_mode = if is_id { "gtx+" } else { "raw" };
-                s.url = format!(
-                    "http://127.0.0.1:8767/api/player/sub?url={}&mode={}",
-                    urlencoding::encode(&s.url),
-                    sub_mode
-                );
-            }
-            s
-        }).collect();
-
-        let has_indo_cached = proxied_subtitles.iter().any(|s| s.lang == "id" || s.label.to_lowercase().contains("indonesia"));
-        if !has_indo_cached {
-            let candidate = proxied_subtitles.iter().find(|s| {
-                let lb = s.label.to_lowercase();
-                let l = s.lang.to_lowercase();
-                (lb.contains("english") || l == "en")
-                    && !lb.contains("arabic")
-                    && !lb.contains("french")
-                    && !lb.contains("german")
-                    && !lb.contains("spanish")
-                    && !lb.contains("portuguese")
-                    && !lb.contains("russian")
-                    && !lb.contains("italian")
-            }).or_else(|| proxied_subtitles.first()).cloned();
-
-            if let Some(src_sub) = candidate {
+        if let Some(src_sub) = candidate_sub {
+            if !src_sub.url.is_empty() {
                 let trans_url = format!("http://127.0.0.1:8767/api/player/sub?url={}&mode=gtx+", urlencoding::encode(&src_sub.url));
-                proxied_subtitles.insert(0, SubtitleTrack {
+                subtitles.insert(0, SubtitleTrack {
                     label: "Indonesia (Otomatis)".to_string(),
                     lang: "id".to_string(),
                     url: trans_url,
@@ -312,24 +107,69 @@ pub async fn resolve_stream(
                 let prewarm_url = src_sub.url.clone();
                 let db_clone = db.clone();
                 tokio::spawn(async move {
-                    let _ = crate::api::sub::get_or_translate_vtt(&prewarm_url, "gtx+", &db_clone).await;
+                    let _ = crate::api::sub::get_or_translate_vtt(&prewarm_url, "gtx+", 0, &db_clone).await;
                 });
             }
         }
-        let mut def_found = false;
-        for s in &mut proxied_subtitles {
-            let is_id = s.lang == "id" || s.label.to_lowercase().contains("indonesia");
-            if is_id && !def_found { s.default = true; def_found = true; } else { s.default = false; }
+    }
+
+    let mut found_default = false;
+    for s in subtitles.iter_mut() {
+        let is_id = s.lang == "id" || s.label.to_lowercase().contains("indonesia");
+        if is_id && !found_default {
+            s.default = true;
+            found_default = true;
+        } else {
+            s.default = false;
         }
-        sort_subtitles(&mut proxied_subtitles);
+        if !s.url.is_empty() && !s.url.starts_with("http://127.0.0.1:8767") {
+            let sub_mode = if is_id { "gtx+" } else { "raw" };
+            s.url = format!("http://127.0.0.1:8767/api/player/sub?url={}&mode={}", urlencoding::encode(&s.url), sub_mode);
+        }
+    }
+    sort_subtitles(subtitles);
+}
+
+pub async fn resolve_stream(
+    slug: &str,
+    episode: i32,
+    mode: &str,
+    provider_param: Option<&str>,
+    server_param: Option<&str>,
+    mal_id: Option<i64>,
+    title_hint: Option<&str>,
+    db: &Database,
+) -> Result<ResolvedStream> {
+    let default_id = providers::get_default_provider_id(db);
+    let provider_id = provider_param.unwrap_or(&default_id);
+    let provider: Arc<dyn StreamProvider> = providers::get_provider(provider_id)
+        .ok_or_else(|| anyhow!("Unknown streaming provider: '{}'", provider_id))?;
+
+    let is_dub = mode.eq_ignore_ascii_case("dub");
+    if is_dub && !provider.has_dub() {
+        return Err(anyhow!("Provider '{}' does not support DUB mode", provider.name()));
+    }
+
+    let active_mode = if is_dub { "dub" } else { "sub" };
+    let cache_slug = if provider_id == "hianime" { slug.to_string() } else { format!("{}:{}", provider_id, slug) };
+
+    if let Ok(Some(cached)) = db.get_episode_cache(&cache_slug, episode, active_mode, 7200) {
+        let proxied = format!(
+            "http://127.0.0.1:8767/api/player/video?url={}&referer={}",
+            urlencoding::encode(&cached.master),
+            urlencoding::encode(&cached.referer)
+        );
+        let mut proxied_subtitles = cached.subtitles;
+        process_subtitles(&mut proxied_subtitles, db);
 
         return Ok(ResolvedStream {
-            slug: cached.slug,
+            slug: slug.to_string(),
             episode: cached.ep,
             mode: cached.mode,
             master: cached.master,
             referer: cached.referer,
             server: cached.server,
+            provider: provider_id.to_string(),
             subtitles: proxied_subtitles,
             intro: cached.intro,
             outro: cached.outro,
@@ -342,7 +182,6 @@ pub async fn resolve_stream(
         _ => clean_slug_to_title(slug),
     };
 
-    // 2. Resolve target MAL ID (from param or query AniList GraphQL using ID from slug)
     let target_mal_id = match mal_id {
         Some(m) if m > 0 => Some(m),
         _ => {
@@ -355,110 +194,22 @@ pub async fn resolve_stream(
             }
         }
     };
-    // 3. Resolve master stream and subtitles
-    let (master_stream, mut subtitles, referer) = match target_mal_id {
-        Some(m_id) => {
-            // Direct MAL extraction
-            match fetch_zoko_by_mal(m_id, episode, mode).await {
-                Ok((master, subs)) => (master, subs, "https://zokoanime.video/".to_string()),
-                Err(_) => {
-                    // Fallback to title search on HiAnime
-                    resolve_via_hianime_scraping(&search_title, episode).await?
-                }
-            }
-        }
-        None => {
-            resolve_via_hianime_scraping(&search_title, episode).await?
-        }
-    };
 
-    // 4. Skip intervals (player skip HUD removed in v0.2.7)
-    let (intro, outro) = (
-        SkipInterval { start: 0.0, end: 0.0 },
-        SkipInterval { start: 0.0, end: 0.0 },
-    );
+    let res = provider.resolve_episode(slug, episode, active_mode, server_param, target_mal_id, Some(&search_title)).await?;
+    let mut subtitles = res.subtitles;
+    process_subtitles(&mut subtitles, db);
 
-    // 5. Indonesian Subtitle Handling & Local Proxy Rewriting
-    for s in &mut subtitles {
-        s.lang = normalize_sub_lang(&s.label, &s.lang);
-    }
-
-    let has_indo = subtitles.iter().any(|s| {
-        let l = s.lang.to_lowercase();
-        let lb = s.label.to_lowercase();
-        l == "id" || l == "ind" || lb.contains("indonesia")
-    });
-
-    if !has_indo {
-        // Preferred source for Indonesian translation: true English subtitle
-        let candidate_sub = subtitles.iter().find(|s| {
-            let lb = s.label.to_lowercase();
-            let l = s.lang.to_lowercase();
-            (lb.contains("english") || l == "en")
-                && !lb.contains("arabic")
-                && !lb.contains("french")
-                && !lb.contains("german")
-                && !lb.contains("spanish")
-                && !lb.contains("portuguese")
-                && !lb.contains("russian")
-                && !lb.contains("italian")
-        }).or_else(|| subtitles.first());
-
-        if let Some(src_sub) = candidate_sub {
-            let raw_url = src_sub.url.clone();
-            let translated_url = format!(
-                "http://127.0.0.1:8767/api/player/sub?url={}&mode=gtx+",
-                urlencoding::encode(&raw_url)
-            );
-            subtitles.insert(0, SubtitleTrack {
-                label: "Indonesia (Otomatis)".to_string(),
-                lang: "id".to_string(),
-                url: translated_url,
-                default: true,
-            });
-            let prewarm_url = raw_url.clone();
-            let db_clone = db.clone();
-            tokio::spawn(async move {
-                let _ = crate::api::sub::get_or_translate_vtt(&prewarm_url, "gtx+", &db_clone).await;
-            });
-        }
-    }
-
-    // Ensure EVERY subtitle URL points to the local daemon proxy on 127.0.0.1:8767
-    let mut found_default = false;
-    for s in &mut subtitles {
-        let l = s.lang.to_lowercase();
-        let lb = s.label.to_lowercase();
-        let is_id = l == "id" || l == "ind" || lb.contains("indonesia");
-        if is_id && !found_default {
-            s.default = true;
-            found_default = true;
-        } else {
-            s.default = false;
-        }
-
-        if !s.url.starts_with("http://127.0.0.1:8767") {
-            let sub_mode = if is_id { "gtx+" } else { "raw" };
-            s.url = format!(
-                "http://127.0.0.1:8767/api/player/sub?url={}&mode={}",
-                urlencoding::encode(&s.url),
-                sub_mode
-            );
-        }
-    }
-    sort_subtitles(&mut subtitles);
-
-    // 6. Cache into SQLite
+    let (intro, outro) = (SkipInterval { start: 0.0, end: 0.0 }, SkipInterval { start: 0.0, end: 0.0 });
     let cached = CachedEpisode {
-        slug: slug.to_string(),
+        slug: cache_slug.clone(),
         ep: episode,
-        mode: mode.to_string(),
-        master: master_stream.clone(),
+        mode: active_mode.to_string(),
+        master: res.master.clone(),
         variants: Value::Array(vec![]),
         sub: subtitles.first().map(|s| s.url.clone()).unwrap_or_default(),
         sub_lang: subtitles.first().map(|s| s.label.clone()).unwrap_or_default(),
-        referer: referer.clone(),
-        server: "zokoanime".to_string(),
+        referer: res.referer.clone(),
+        server: res.server.clone(),
         subtitles: subtitles.clone(),
         intro: SkipInterval { start: intro.start, end: intro.end },
         outro: SkipInterval { start: outro.start, end: outro.end },
@@ -468,17 +219,18 @@ pub async fn resolve_stream(
 
     let proxied = format!(
         "http://127.0.0.1:8767/api/player/video?url={}&referer={}",
-        urlencoding::encode(&master_stream),
-        urlencoding::encode(&referer)
+        urlencoding::encode(&res.master),
+        urlencoding::encode(&res.referer)
     );
 
     Ok(ResolvedStream {
         slug: slug.to_string(),
         episode,
-        mode: mode.to_string(),
-        master: master_stream,
-        referer,
-        server: "zokoanime".to_string(),
+        mode: active_mode.to_string(),
+        master: res.master,
+        referer: res.referer,
+        server: res.server,
+        provider: provider_id.to_string(),
         subtitles,
         intro,
         outro,

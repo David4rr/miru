@@ -34,7 +34,10 @@ import id.miru.app.ui.components.ChangelogModalBottomSheet
 import id.miru.app.ui.components.ReportIssueBottomSheet
 import id.miru.app.ui.components.UpdateAvailableBottomSheet
 import id.miru.app.ui.components.settings.SettingsAboutCard
+import id.miru.app.ui.components.settings.SettingsAiFansubCard
 import id.miru.app.ui.components.settings.SettingsEngineCard
+import id.miru.app.ui.components.settings.SettingsLexiconSheet
+import id.miru.app.ui.components.settings.SettingsSafeModeCard
 import id.miru.app.ui.components.settings.SettingsStorageCard
 import id.miru.app.ui.components.settings.SettingsUpdateCard
 import id.miru.app.ui.theme.CrunchyrollOrange
@@ -47,6 +50,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
+    onOpenTerminal: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -59,7 +63,7 @@ fun SettingsScreen(
     var showReportSheet by remember { mutableStateOf(false) }
     var showChangelogSheet by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
-
+    var showLexiconSheet by remember { mutableStateOf(false) }
     fun checkUpdateNow() {
         if (isCheckingUpdate) return
         isCheckingUpdate = true
@@ -103,9 +107,9 @@ fun SettingsScreen(
                 onUpdateBannerClick = { showUpdateSheet = true }
             )
         }
-
+        item { SettingsSafeModeCard() }
+        item { SettingsAiFansubCard(onOpenLexicon = { showLexiconSheet = true }) }
         item { SettingsEngineCard() }
-
         item {
             SettingsStorageCard(
                 onClearHistoryClick = { showClearHistoryDialog = true },
@@ -113,7 +117,7 @@ fun SettingsScreen(
             )
         }
 
-        item { SettingsAboutCard() }
+        item { SettingsAboutCard(onOpenTerminal = onOpenTerminal) }
 
         item { Spacer(modifier = Modifier.height(80.dp)) }
     }
@@ -151,8 +155,11 @@ fun SettingsScreen(
     if (showChangelogSheet) {
         ChangelogModalBottomSheet(onDismissRequest = { showChangelogSheet = false })
     }
-
     if (showReportSheet) {
         ReportIssueBottomSheet(onDismissRequest = { showReportSheet = false })
+    }
+
+    if (showLexiconSheet) {
+        SettingsLexiconSheet(onDismissRequest = { showLexiconSheet = false })
     }
 }

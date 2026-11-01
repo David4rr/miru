@@ -1,25 +1,11 @@
 package id.miru.app.ui.components.player
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.SubtitlesOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -40,7 +26,12 @@ fun PlayerTopControls(
     episode: Int,
     isScreenLocked: Boolean,
     isSubtitleActive: Boolean = true,
+    aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
     onOpenSubtitleSheet: () -> Unit,
+    onOpenQualitySheet: () -> Unit,
+    onOpenSourceSheet: () -> Unit = {},
+    onToggleAspectRatio: () -> Unit,
+    onEnterPip: () -> Unit,
     onToggleLock: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -49,33 +40,65 @@ fun PlayerTopControls(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
             onClick = onBackClick,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
+            modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
         ) {
-            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(text = "Episode $episode", color = CrunchyOrange, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "Episode $episode",
+                color = CrunchyOrange,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
 
-        // Subtitle Selector Button (Minimal & Non-Distracting)
+        IconButton(
+            onClick = onOpenSourceSheet,
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
+        ) {
+            Icon(Icons.Default.Dns, contentDescription = "Sumber & Server", tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        IconButton(
+            onClick = onToggleAspectRatio,
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
+        ) {
+            Icon(Icons.Default.AspectRatio, contentDescription = "Rasio Layar: ${aspectRatioMode.label}", tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        IconButton(
+            onClick = onOpenQualitySheet,
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
+        ) {
+            Icon(Icons.Default.HighQuality, contentDescription = "Kualitas Video", tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
+
         IconButton(
             onClick = onOpenSubtitleSheet,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
         ) {
             Icon(
                 imageVector = if (isSubtitleActive) Icons.Default.Subtitles else Icons.Default.SubtitlesOff,
@@ -85,15 +108,20 @@ fun PlayerTopControls(
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
-        // Screen Lock Button
+        IconButton(
+            onClick = onEnterPip,
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f))
+        ) {
+            Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Mode PiP", tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
+
         IconButton(
             onClick = onToggleLock,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(if (isScreenLocked) CrunchyOrange.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.4f))
+            modifier = Modifier.size(36.dp).clip(CircleShape).background(if (isScreenLocked) CrunchyOrange.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.4f))
         ) {
             Icon(
                 imageVector = if (isScreenLocked) Icons.Default.Lock else Icons.Default.LockOpen,

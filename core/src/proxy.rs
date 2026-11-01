@@ -5,18 +5,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 use std::time::Duration;
 
 static PROXY_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
-        .timeout(Duration::from_secs(45))
-        .tcp_nodelay(true)
-        .pool_max_idle_per_host(20)
-        .pool_idle_timeout(Duration::from_secs(60))
-        .build()
-        .expect("Failed to initialize proxy reqwest client")
+        .timeout(Duration::from_secs(45)).tcp_nodelay(true)
+        .pool_max_idle_per_host(20).pool_idle_timeout(Duration::from_secs(60))
+        .build().expect("Failed to initialize proxy reqwest client")
 });
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -110,6 +107,9 @@ pub async fn proxy_video_handler(
     client_headers: HeaderMap,
     Query(params): Query<VideoProxyParams>,
 ) -> Response {
+    if let Err(err) = crate::net::validator::is_safe_remote_url(&params.url) {
+        return (StatusCode::BAD_REQUEST, format!("Disallowed URL: {}", err)).into_response();
+    }
     let url = params.url;
     let referer = params.referer.unwrap_or_default();
     let effective_referer = if !referer.is_empty() {
@@ -181,17 +181,69 @@ pub async fn proxy_video_handler(
         } else {
             headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
         }
-        if let Some(cl) = upstream.headers().get(header::CONTENT_LENGTH) {
-            headers.insert(header::CONTENT_LENGTH, cl.clone());
-        }
-        if let Some(cr) = upstream.headers().get(header::CONTENT_RANGE) {
-            headers.insert(header::CONTENT_RANGE, cr.clone());
-        }
-        if let Some(ar) = upstream.headers().get(header::ACCEPT_RANGES) {
-            headers.insert(header::ACCEPT_RANGES, ar.clone());
+        for h in [header::CONTENT_LENGTH, header::CONTENT_RANGE, header::ACCEPT_RANGES] {
+            if let Some(val) = upstream.headers().get(&h) {
+                headers.insert(h, val.clone());
+            }
         }
 
         let body = Body::from_stream(upstream.bytes_stream());
         (status, headers, body).into_response()
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VideoVariant {
+    pub resolution: String,
+    pub width: u32,
+    pub height: u32,
+    pub bandwidth: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codecs: Option<String>,
+    pub url: String,
+}
+
+pub fn parse_hls_variants(body: &str) -> Vec<VideoVariant> {
+    let re_bw = regex::Regex::new(r"BANDWIDTH=(\d+)").ok();
+    let re_res = regex::Regex::new(r"RESOLUTION=(\d+)[xX](\d+)").ok();
+    let re_codecs = regex::Regex::new(r#"CODECS="([^"]+)""#).ok();
+    let mut variants = Vec::new();
+    let mut pending: Option<(u64, Option<(u32, u32)>, Option<String>)> = None;
+
+    for line in body.lines() {
+        let t = line.trim();
+        if t.is_empty() { continue; }
+        if t.starts_with("#EXT-X-STREAM-INF:") {
+            let bw = re_bw.as_ref().and_then(|r| r.captures(t)).and_then(|c| c.get(1)).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let res = re_res.as_ref().and_then(|r| r.captures(t)).and_then(|c| {
+                let w = c.get(1)?.as_str().parse().ok()?;
+                let h = c.get(2)?.as_str().parse().ok()?;
+                Some((w, h))
+            });
+            let cod = re_codecs.as_ref().and_then(|r| r.captures(t)).and_then(|c| c.get(1)).map(|m| m.as_str().to_string());
+            pending = Some((bw, res, cod));
+        } else if !t.starts_with('#') {
+            if let Some((bw, Some((w, h)), cod)) = pending.take() {
+                if w > 0 && h > 0 {
+                    variants.push(VideoVariant {
+                        resolution: format!("{}p", h),
+                        width: w, height: h, bandwidth: bw, codecs: cod, url: t.to_string(),
+                    });
+                }
+            } else {
+                pending = None;
+            }
+        }
+    }
+    variants.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| b.bandwidth.cmp(&a.bandwidth)));
+    variants
+}
+
+pub async fn fetch_hls_text(url: &str, referer: Option<&str>) -> Result<String, anyhow::Error> {
+    crate::net::validator::is_safe_remote_url(url)
+        .map_err(|e| anyhow::anyhow!("Disallowed HLS target: {}", e))?;
+    let fallback = if url.contains("drama") || url.contains("zoko") { "https://zokoanime.video/" } else { "https://hianime.at/" };
+    let eff_ref = referer.unwrap_or(fallback);
+    let text = PROXY_CLIENT.get(url).header("User-Agent", USER_AGENT).header("Referer", eff_ref).send().await?.text().await?;
+    Ok(text)
 }

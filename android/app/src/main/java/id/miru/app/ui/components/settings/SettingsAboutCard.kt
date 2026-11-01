@@ -1,5 +1,6 @@
 package id.miru.app.ui.components.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -23,7 +28,12 @@ import id.miru.app.ui.theme.TextMuted
 import id.miru.app.ui.theme.TextPrimary
 
 @Composable
-fun SettingsAboutCard(modifier: Modifier = Modifier) {
+fun SettingsAboutCard(
+    onOpenTerminal: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    var tapCount by remember { mutableIntStateOf(0) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -35,7 +45,19 @@ fun SettingsAboutCard(modifier: Modifier = Modifier) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Miru for Android", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Versi ${UpdateManager.currentVersion} • Native Kotlin + Rust Core", color = TextMuted, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Versi ${UpdateManager.currentVersion} • Native Kotlin + Rust Core",
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.clickable {
+                            tapCount++
+                            if (tapCount >= 5) {
+                                tapCount = 0
+                                onOpenTerminal()
+                            }
+                        }
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))

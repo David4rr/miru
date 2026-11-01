@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.miru.app.ui.theme.CrunchyOrange
+import java.util.Locale
 
 @Composable
 fun PlayerGestureOverlay(
@@ -37,9 +40,20 @@ fun PlayerGestureOverlay(
     showBrightnessHud: Boolean,
     brightnessPercent: Int,
     seekRippleSide: String?,
+    scale: Float = 1.0f,
+    onScaleChanged: (Float) -> Unit = {},
+    toastMessage: String? = null,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    val transformState = rememberTransformableState { zoomChange, _, _ ->
+        onScaleChanged(PlayerAspectRatioController.clampScale(scale * zoomChange))
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .transformable(state = transformState)
+    ) {
         // Volume HUD (Left Center)
         AnimatedVisibility(
             visible = showVolumeHud,
@@ -54,9 +68,19 @@ fun PlayerGestureOverlay(
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.VolumeUp, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                    contentDescription = null,
+                    tint = CrunchyOrange,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "$volumePercent%", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "$volumePercent%",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -74,9 +98,65 @@ fun PlayerGestureOverlay(
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.BrightnessMedium, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = Icons.Default.BrightnessMedium,
+                    contentDescription = null,
+                    tint = CrunchyOrange,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "$brightnessPercent%", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "$brightnessPercent%",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Pinch Zoom Level HUD
+        AnimatedVisibility(
+            visible = scale > 1.05f,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 64.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "Zoom: ${String.format(Locale.US, "%.1fx", scale)}",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Transient Aspect Ratio Toast HUD
+        AnimatedVisibility(
+            visible = toastMessage != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp)
+        ) {
+            toastMessage?.let { msg ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black.copy(alpha = 0.8f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = msg,
+                        color = CrunchyOrange,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
@@ -85,7 +165,8 @@ fun PlayerGestureOverlay(
             visible = seekRippleSide != null,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier.align(if (seekRippleSide == "left") Alignment.CenterStart else Alignment.CenterEnd)
+            modifier = Modifier
+                .align(if (seekRippleSide == "left") Alignment.CenterStart else Alignment.CenterEnd)
                 .padding(horizontal = 60.dp)
         ) {
             Box(
