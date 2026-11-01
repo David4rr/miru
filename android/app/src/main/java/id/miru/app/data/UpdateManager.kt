@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.1"
+        "0.3.2"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,27 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.2",
+                versionName = "0.3.2",
+                title = "Miru Android v0.3.2 (Minimalist Top Bar HUD & Adaptive Subtitle Zoom)",
+                body = """
+                    ### Miru Android v0.3.2
+
+                    #### ✨ Desain Minimalis & Elegan Top Bar (PlayerTopControls):
+                    - **Eliminasi Bubble Bulat Tebal:** Menghapus lingkaran hitam individual pada tombol back dan deretan menu aksi kanan atas (sumber, rasio layar, kualitas, subtitle, PiP, kunci layar) yang sebelumnya membuat layar penuh dan padat.
+                    - **Top Scrim Gradient Halus:** Mengganti container bulat dengan gradasi bayangan vertikal halus yang menyatu mulus di seluruh area atas layar untuk memastikan teks dan icon tetap terbaca jelas di atas adegan terang.
+                    - **Border-less Floating Action Icons:** Tombol kini mengambang bersih dengan efek sentuh ripple melingkar tanpa latar belakang permanen, serta indikator aksen halus (`CrunchyOrange`) untuk status aktif.
+
+                    #### 🔍 Penyesuaian Subtitle Mode Perbesar (Zoom):
+                    - **Decoupled Subtitle Rendering:** Memisahkan render subtitle dari `PlayerView` ke komponen overlay mandiri `PlayerSubtitleOverlay`.
+                    - **Subtitle Tetap Utuh Saat Zoom:** Saat video diperbesar (mode aspect ratio ZOOM, FILL, atau pinch-to-zoom 2-jari), subtitle tidak lagi terdorong atau terpotong keluar dari layar, melainkan tetap terkunci rapi pada area aman di bagian bawah layar.
+                """.trimIndent(),
+                publishedAt = "2026-11-01",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.2/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.1",
                 versionName = "0.3.1",

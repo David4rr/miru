@@ -143,6 +143,7 @@ fun PlayerScreen(
                 PlayerControlsOverlay(
                     isVisible = areControlsVisible, title = anime.title, episode = currentEpisode,
                     isSubtitleActive = activeSubtitle != null, aspectRatioMode = aspectRatioMode,
+                    isCustomQuality = selectedVariant != null,
                     onOpenSubtitleSheet = { showSubtitleSheet = true },
                     onOpenQualitySheet = { showQualitySheet = true },
                     onOpenSourceSheet = { sourceState.showSourceSheet = true },

@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -22,6 +25,7 @@ fun PlayerControlsOverlay(
     episode: Int,
     isSubtitleActive: Boolean = true,
     aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
+    isCustomQuality: Boolean = false,
     onOpenSubtitleSheet: () -> Unit,
     onOpenQualitySheet: () -> Unit = {},
     onOpenSourceSheet: () -> Unit = {},
@@ -70,15 +74,9 @@ fun PlayerControlsOverlay(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.85f),
-                                Color.Black.copy(alpha = 0.45f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+                    .fillMaxWidth()
+                    .background(PlayerTopScrimBrush)
+                    .padding(bottom = 16.dp)
             ) {
                 PlayerTopControls(
                     title = title,
@@ -86,6 +84,7 @@ fun PlayerControlsOverlay(
                     isScreenLocked = false,
                     isSubtitleActive = isSubtitleActive,
                     aspectRatioMode = aspectRatioMode,
+                    isCustomQuality = isCustomQuality,
                     onOpenSubtitleSheet = onOpenSubtitleSheet,
                     onOpenQualitySheet = onOpenQualitySheet,
                     onOpenSourceSheet = onOpenSourceSheet,
