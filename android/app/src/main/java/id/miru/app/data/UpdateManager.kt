@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.0"
+        "0.3.1"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,23 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.1",
+                versionName = "0.3.1",
+                title = "Miru Android v0.3.1 (Fix Player Controls Lockout on Touch)",
+                body = """
+                    ### Miru Android v0.3.1
+
+                    #### 🛠️ Perbaikan Bug Kontrol Layar Terkunci (PlayerScreen):
+                    - **Eliminasi Touch Swallowing pada Overlay:** Memindahkan seluruh pendeteksi gestur ketukan (`detectTapGestures` untuk toggle HUD dan double tap) langsung ke `PlayerGestureOverlay`, menggantikan lokasi sebelumnya yang tertanam di bawah `AndroidView` (`PlayerVideoSurface`).
+                    - **Respon Ketukan Konsisten Pasca Bottom Sheet:** Memastikan penutupan modal bottom sheet (kualitas, episode, subtitle, provider, offset) tidak lagi memblokir sentuhan layar. Mengetuk layar kini 100% andal memunculkan kembali kontrol pemutar.
+                    - **Pemisahan Modul HUD Gestur:** Mengekstrak komponen HUD volume, kecerahan, zoom, dan aspect ratio ke `PlayerGestureHuds` demi performa rendering dan batas LOC modular.
+                """.trimIndent(),
+                publishedAt = "2026-11-01",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.1/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.0",
                 versionName = "0.3.0",

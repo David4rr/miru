@@ -123,22 +123,21 @@ fun PlayerScreen(
     BackHandler { saveProgress(); exoPlayer.stop(); onBackClick() }
 
     Box(modifier = modifier.fillMaxSize().background(DarkBackground)) {
-        PlayerVideoSurface(
-            exoPlayer = exoPlayer, isScreenLocked = isScreenLocked,
-            aspectRatioMode = aspectRatioMode, scale = pinchScale,
-            onToggleControls = { if (areControlsVisible) areControlsVisible = false else ping() },
-            onToggleUnlockButton = { showUnlockButton = !showUnlockButton },
-            onDoubleTapSeek = { isLeft ->
-                val delta = if (isLeft) -10_000 else 10_000
-                exoPlayer.seekTo((exoPlayer.currentPosition + delta).coerceIn(0, duration))
-                seekRippleSide = if (isLeft) "left" else "right"; ping()
-                scope.launch { delay(600); seekRippleSide = null }
-            },
-            onDoubleTapResetZoom = { pinchScale = 1.0f; ping() }
-        )
+        PlayerVideoSurface(exoPlayer = exoPlayer, aspectRatioMode = aspectRatioMode, scale = pinchScale)
 
         if (!isInPip) {
-            PlayerGestureOverlay(false, 50, false, 50, seekRippleSide, pinchScale, { pinchScale = it }, aspectRatioToast)
+            PlayerGestureOverlay(
+                scale = pinchScale, onScaleChanged = { pinchScale = it }, isScreenLocked = isScreenLocked,
+                onToggleControls = { if (areControlsVisible) areControlsVisible = false else ping() },
+                onToggleUnlockButton = { showUnlockButton = !showUnlockButton },
+                onDoubleTapSeek = { isLeft ->
+                    exoPlayer.seekTo((exoPlayer.currentPosition + (if (isLeft) -10_000 else 10_000)).coerceIn(0, duration))
+                    seekRippleSide = if (isLeft) "left" else "right"; ping()
+                    scope.launch { delay(600); seekRippleSide = null }
+                },
+                onDoubleTapResetZoom = { pinchScale = 1.0f; ping() },
+                seekRippleSide = seekRippleSide, toastMessage = aspectRatioToast
+            )
             PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; ping() }, modifier = Modifier.align(Alignment.Center))
             if (!isScreenLocked) {
                 PlayerControlsOverlay(

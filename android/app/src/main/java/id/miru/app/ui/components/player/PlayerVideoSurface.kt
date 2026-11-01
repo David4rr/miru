@@ -4,12 +4,10 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.view.ViewGroup
 import androidx.annotation.OptIn
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -21,13 +19,8 @@ import androidx.media3.ui.SubtitleView
 @Composable
 fun PlayerVideoSurface(
     exoPlayer: ExoPlayer,
-    isScreenLocked: Boolean,
     aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
     scale: Float = 1.0f,
-    onToggleControls: () -> Unit,
-    onToggleUnlockButton: () -> Unit,
-    onDoubleTapSeek: (Boolean) -> Unit,
-    onDoubleTapResetZoom: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     AndroidView(
@@ -67,23 +60,6 @@ fun PlayerVideoSurface(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-            }
-            .pointerInput(isScreenLocked, scale) {
-                if (isScreenLocked) {
-                    detectTapGestures { onToggleUnlockButton() }
-                } else {
-                    detectTapGestures(
-                        onTap = { onToggleControls() },
-                        onDoubleTap = { offset ->
-                            if (scale > 1.05f) {
-                                onDoubleTapResetZoom()
-                            } else {
-                                val isLeft = offset.x < size.width / 2
-                                onDoubleTapSeek(isLeft)
-                            }
-                        }
-                    )
-                }
             }
     )
 }
