@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.2"
+        "0.3.3"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,26 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.3",
+                versionName = "0.3.3",
+                title = "Miru Android v0.3.3 (Search Optimization & Multi-Term Fallback)",
+                body = """
+                    ### Miru Android v0.3.3
+
+                    #### 🔍 Perbaikan Bug Pencarian Kosong (Zero Results Fix):
+                    - **Perbaikan JSON Traversal AniList:** Memperbaiki parsing respons GraphQL di daemon Rust yang sebelumnya tidak menyertakan key Page (`data.Page.media`), yang menyebabkan seluruh query pencarian mengembalikan daftar kosong.
+                    - **Pencegahan Cache Negatif:** Memastikan hasil pencarian yang kosong tidak disimpan ke dalam SQLite `search_cache`.
+
+                    #### 🧠 Optimasi Algoritma Pencarian & Judul Bahasa Inggris:
+                    - **Normalisasi Kueri Pintar:** Otomatis membersihkan noise teks rilis seperti `[1080p]`, `[Batch]`, `(2016)`, `sub indo`, dan karakter khusus sebelum dikirim ke API.
+                    - **Multi-Term Fallback:** Jika pencarian frasa lengkap (contoh: "the disastrous saiki") tidak menemukan hasil, sistem secara otomatis memfilter stop words ("the", "of", "a", "no", "wa") dan mencari kombinasi kata kunci utama ("disastrous saiki" / "saiki"), sehingga judul resmi bahasa Inggris (*The Disastrous Life of Saiki K.*) langsung ditemukan secara akurat.
+                """.trimIndent(),
+                publishedAt = "2026-11-02",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.3/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.2",
                 versionName = "0.3.2",

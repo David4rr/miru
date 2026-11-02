@@ -38,6 +38,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/home", get(home_handler))
         .route("/api/schedule", get(schedule_handler))
         .route("/api/search", get(search_handler))
+        .route("/api/anime/search", get(search_handler))
         .route("/api/anime/editions", get(editions_handler))
         .route("/api/stream/resolve", get(resolve_stream_handler))
         .route("/api/stream/providers", get(stream_providers_get_handler))
@@ -177,7 +178,7 @@ async fn search_handler(
     let page = params.page.unwrap_or(1);
     let per_page = params.per_page.unwrap_or(20);
 
-    match api::anilist::search_anime(&params.q, page, per_page, &state.db).await {
+    match api::search::search_anime(&params.q, page, per_page, &state.db).await {
         Ok(cards) => Json(json!({ "success": true, "data": cards })).into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,

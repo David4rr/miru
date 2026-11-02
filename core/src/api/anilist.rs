@@ -191,11 +191,26 @@ pub async fn query_anilist(query: &str, variables: Value) -> Result<Value> {
         "variables": variables
     });
 
-    let resp = HTTP_CLIENT
+    let resp_res = HTTP_CLIENT
         .post(ANILIST_URL)
         .json(&payload)
         .send()
-        .await?;
+        .await;
+
+    let resp = match resp_res {
+        Ok(r) => r,
+        Err(e) if e.to_string().contains("dispatch task") => {
+            Client::builder()
+                .user_agent(USER_AGENT)
+                .timeout(std::time::Duration::from_secs(12))
+                .build()?
+                .post(ANILIST_URL)
+                .json(&payload)
+                .send()
+                .await?
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     if !resp.status().is_success() {
         return Err(anyhow!("AniList GraphQL returned status {}", resp.status()));
@@ -542,53 +557,7 @@ pub async fn fetch_schedule(db: &Database) -> Result<WeeklyScheduleResponse> {
     Ok(response)
 }
 
-const SEARCH_QUERY: &str = r#"
-query SearchAnime($search: String, $page: Int, $perPage: Int, $isAdult: Boolean) {
-  Page(page: $page, perPage: $perPage) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: $isAdult) {
-      id idMal status episodes averageScore seasonYear genres bannerImage
-      title { romaji english }
-      coverImage { large }
-      description(asHtml: false)
-      nextAiringEpisode { episode }
-    }
-  }
-}
-"#;
-
-pub async fn search_anime(query: &str, page: i32, per_page: i32, db: &Database) -> Result<Vec<AnimeCard>> {
-    let is_safe = db.is_safe_mode();
-    let cache_key = format!("search:{}:{}:{}:{}", query.trim().to_lowercase(), page, per_page, is_safe);
-    if let Ok(Some(cached)) = db.get_search_cache(&cache_key, 3600 * 6) {
-        if let Ok(cards) = serde_json::from_value::<Vec<AnimeCard>>(cached) {
-            return Ok(cards);
-        }
-    }
-
-    let mut variables = json!({
-        "search": query,
-        "page": page,
-        "perPage": per_page
-    });
-    if is_safe {
-        variables["isAdult"] = json!(false);
-    }
-
-    let res = query_anilist(SEARCH_QUERY, variables).await?;
-    let media_arr = res.get("data")
-        .and_then(|p| p.get("media"))
-        .and_then(|m| m.as_array())
-        .cloned()
-        .unwrap_or_default();
-
-    let cards: Vec<AnimeCard> = media_arr.iter().filter_map(parse_media_item).collect();
-
-    if let Ok(val) = serde_json::to_value(&cards) {
-        let _ = db.set_search_cache(&cache_key, &val);
-    }
-
-    Ok(cards)
-}
+pub use crate::api::search::search_anime;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimeEdition {

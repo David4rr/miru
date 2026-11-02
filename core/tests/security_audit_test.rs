@@ -1,4 +1,3 @@
-use axum::http::StatusCode;
 use miru_core::api::terminal::execute_command;
 use miru_core::db::Database;
 use miru_core::net::validator::is_safe_remote_url;
