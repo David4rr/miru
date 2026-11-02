@@ -38,7 +38,6 @@ fun PlayerScreen(
     var showQualitySheet by remember { mutableStateOf(false) }
     var activeSubtitle by remember { mutableStateOf<SubtitleTrack?>(null) }
     var resolvedStream by remember { mutableStateOf<ResolvedStream?>(null) }
-    var seekRippleSide by remember { mutableStateOf<String?>(null) }
     var videoVariants by remember { mutableStateOf<List<VideoVariant>>(emptyList()) }
     var selectedVariant by remember { mutableStateOf<VideoVariant?>(null) }
     var aspectRatioMode by remember { mutableStateOf(AspectRatioMode.FIT) }
@@ -131,12 +130,12 @@ fun PlayerScreen(
                 onToggleControls = { if (areControlsVisible) areControlsVisible = false else ping() },
                 onToggleUnlockButton = { showUnlockButton = !showUnlockButton },
                 onDoubleTapSeek = { isLeft ->
-                    exoPlayer.seekTo((exoPlayer.currentPosition + (if (isLeft) -10_000 else 10_000)).coerceIn(0, duration))
-                    seekRippleSide = if (isLeft) "left" else "right"; ping()
-                    scope.launch { delay(600); seekRippleSide = null }
+                    val delta = if (isLeft) -10_000L else 10_000L
+                    exoPlayer.seekTo((exoPlayer.currentPosition + delta).coerceIn(0, duration))
+                    if (areControlsVisible) lastInteraction = System.currentTimeMillis()
                 },
                 onDoubleTapResetZoom = { pinchScale = 1.0f; ping() },
-                seekRippleSide = seekRippleSide, toastMessage = aspectRatioToast
+                toastMessage = aspectRatioToast
             )
             PlayerLockOverlay(isScreenLocked, showUnlockButton, onUnlockClick = { isScreenLocked = false; showUnlockButton = false; ping() }, modifier = Modifier.align(Alignment.Center))
             if (!isScreenLocked) {

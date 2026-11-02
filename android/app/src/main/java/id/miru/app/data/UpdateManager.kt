@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.3"
+        "0.3.4"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,28 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.4",
+                versionName = "0.3.4",
+                title = "Miru Android v0.3.4 (Vertical Swipe Gestures & Rapid Seek Accumulation)",
+                body = """
+                    ### Miru Android v0.3.4
+
+                    #### ☀️ Gestur Usap Kecerahan & Volume Layar:
+                    - **Usap Vertikal Sisi Kiri:** Geser ke atas atau ke bawah di setengah layar kiri untuk mengatur tingkat kecerahan layar (`0.01f - 1.0f`) dengan HUD indikator kecerahan.
+                    - **Usap Vertikal Sisi Kanan:** Geser ke atas atau ke bawah di setengah layar kanan untuk mengatur volume media (`STREAM_MUSIC`) tanpa memunculkan slider sistem bawaan.
+                    - **HUD Auto-Hide:** Panel indikator kecerahan dan volume otomatis menghilang secara halus 1.5 detik setelah gestur selesai.
+
+                    #### ⏩ Dukungan Spam Double-Tap Skip Intro (YouTube-Style):
+                    - **Akumulasi Lompatan Waktu:** Pengguna kini dapat mengetuk berulang kali secara cepat untuk melompati video (contoh: 2 tap = 10s, 3 tap = 20s, 4 tap = 30s, ..., 9 tap = 80s).
+                    - **HUD Delta Dinamis:** Menampilkan teks akumulasi waktu (`+10s`, `+20s`, `+80s` / `-10s`, `-20s`) dalam kapsul animasi yang halus selama pengguna terus melakukan ketukan.
+                    - **Respon Ketukan Tunggal Tetap Stabil:** Ketukan satu kali tetap berfungsi dengan sempurna untuk memunculkan/menyembunyikan HUD kontrol tanpa konflik.
+                """.trimIndent(),
+                publishedAt = "2026-11-02",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.4/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.3",
                 versionName = "0.3.3",

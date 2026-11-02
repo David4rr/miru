@@ -4,9 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -120,25 +123,38 @@ fun PlayerAspectRatioToastHud(message: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun PlayerSeekRippleHud(side: String?, modifier: Modifier = Modifier) {
+fun PlayerSeekRippleHud(
+    side: String?,
+    seconds: Int = 10,
+    modifier: Modifier = Modifier
+) {
     AnimatedVisibility(
         visible = side != null,
         enter = fadeIn(),
         exit = fadeOut(),
         modifier = modifier
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(CrunchyOrange.copy(alpha = 0.35f)),
-            contentAlignment = Alignment.Center
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color.Black.copy(alpha = 0.75f))
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = if (side == "left") Icons.Default.Replay10 else Icons.Default.Forward10,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(36.dp)
+                tint = CrunchyOrange,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            val prefix = if (side == "left") "-" else "+"
+            Text(
+                text = "$prefix${seconds}s",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
