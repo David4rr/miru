@@ -16,25 +16,49 @@ fun SyncPlayerPipLifecycle(
     duration: Long
 ) {
     val context = LocalContext.current
+    val activity = context as? Activity
 
-    DisposableEffect(Unit) {
+    DisposableEffect(exoPlayer) {
         PlayerPipHelper.isPlayerActive = true
-        PlayerPipHelper.onPlay = { exoPlayer.play() }
-        PlayerPipHelper.onPause = { exoPlayer.pause() }
-        PlayerPipHelper.onRewind = { exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0)) }
-        PlayerPipHelper.onForward = { exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(duration)) }
+        PlayerPipHelper.isPlaying = isPlaying
+        PlayerPipHelper.onPlay = {
+            exoPlayer.play()
+            PlayerPipHelper.isPlaying = true
+            activity?.let {
+                PlayerPipHelper.updatePictureInPictureActions(it, true, PlayerPipHelper.videoWidth, PlayerPipHelper.videoHeight)
+            }
+        }
+        PlayerPipHelper.onPause = {
+            exoPlayer.pause()
+            PlayerPipHelper.isPlaying = false
+            activity?.let {
+                PlayerPipHelper.updatePictureInPictureActions(it, false, PlayerPipHelper.videoWidth, PlayerPipHelper.videoHeight)
+            }
+        }
+        PlayerPipHelper.onRewind = {
+            val target = (exoPlayer.currentPosition - 10_000L).coerceAtLeast(0L)
+            exoPlayer.seekTo(target)
+        }
+        PlayerPipHelper.onForward = {
+            val totalDur = exoPlayer.duration.coerceAtLeast(0L).let { if (it > 0L) it else duration.coerceAtLeast(0L) }
+            val maxDur = if (totalDur > 0L) totalDur else Long.MAX_VALUE
+            val target = (exoPlayer.currentPosition + 10_000L).coerceAtMost(maxDur)
+            exoPlayer.seekTo(target)
+        }
         onDispose {
             PlayerPipHelper.isPlayerActive = false
+            PlayerPipHelper.isEnteringPip = false
             PlayerPipHelper.onPlay = null
             PlayerPipHelper.onPause = null
             PlayerPipHelper.onRewind = null
             PlayerPipHelper.onForward = null
+            activity?.let { PlayerPipHelper.resetPictureInPictureParams(it) }
         }
     }
 
-    LaunchedEffect(isPlaying) {
+    LaunchedEffect(isPlaying, PlayerPipHelper.videoWidth, PlayerPipHelper.videoHeight) {
         PlayerPipHelper.isPlaying = isPlaying
-        (context as? Activity)?.let {
+        activity?.let {
             PlayerPipHelper.updatePictureInPictureActions(it, isPlaying, PlayerPipHelper.videoWidth, PlayerPipHelper.videoHeight)
         }
     }

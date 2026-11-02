@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.4"
+        "0.3.5"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,24 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.5",
+                versionName = "0.3.5",
+                title = "Miru Android v0.3.5 (PiP RemoteActions & Controls Lockout Fix)",
+                body = """
+                    ### Miru Android v0.3.5
+
+                    #### 🖼️ Perbaikan Kontrol Picture-in-Picture (PiP Lockout Fix):
+                    - **Sinkronisasi Lifecycle & Playback:** Memperbaiki masalah pemutar video otomatis ter-pause secara prematur saat transisi ke mode PiP (`ON_PAUSE`), yang sebelumnya membuat tombol PiP terkunci menampilkan status "Pause" pada video yang sudah berhenti.
+                    - **Dukungan Penuh Android 14+ / OEM SystemUI:** Mengonfigurasi broadcast receiver PiP dengan `RECEIVER_EXPORTED` dan package scoping eksplisit, mencegah tombol kontrol diabaikan oleh SystemUI pada Android 14 dan ROM kustom (OneUI, HyperOS, ColorOS).
+                    - **Eliminasi Stale Closure Duration:** Memastikan tombol lompat maju 10 detik (`Forward 10s`) di jendela PiP selalu membaca durasi aktif dari ExoPlayer secara dinamis, mencegah seek ter-reset ke 0 detik.
+                    - **Pembaruan Parameter Responsif:** Parameter PiP kini diperbarui seketika setiap kali status putar/jeda berubah, menjaga tombol kontrol selalu sinkron 100%.
+                """.trimIndent(),
+                publishedAt = "2026-11-02",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.5/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.4",
                 versionName = "0.3.4",

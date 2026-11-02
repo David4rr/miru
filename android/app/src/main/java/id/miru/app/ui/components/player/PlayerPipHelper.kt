@@ -25,6 +25,7 @@ object PlayerPipHelper {
     var videoWidth by mutableIntStateOf(16)
     var videoHeight by mutableIntStateOf(9)
     var isInPipMode by mutableStateOf(false)
+    var isEnteringPip by mutableStateOf(false)
     var onPipModeChanged: ((Boolean) -> Unit)? = null
     var onPlay: (() -> Unit)? = null
     var onPause: (() -> Unit)? = null
@@ -56,73 +57,85 @@ object PlayerPipHelper {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
         val intent = Intent(action).setPackage(context.packageName)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        val pendingIntent = PendingIntent.getBroadcast(context, requestCode, intent, flags)
+        val pendingIntent = PendingIntent.getBroadcast(context.applicationContext, requestCode, intent, flags)
         val icon = Icon.createWithResource(context, iconRes)
         return RemoteAction(icon, title, title, pendingIntent)
     }
 
     fun buildPipActions(context: Context, isPlaying: Boolean): List<RemoteAction> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return emptyList()
-        val actions = mutableListOf<RemoteAction>()
-
-        createRemoteAction(
-            context,
-            android.R.drawable.ic_media_rew,
-            "Mundur 10d",
-            101,
-            ACTION_PIP_REWIND
-        )?.let { actions.add(it) }
-
-        if (isPlaying) {
-            createRemoteAction(
-                context,
-                android.R.drawable.ic_media_pause,
-                "Jeda",
-                102,
-                ACTION_PIP_PAUSE
-            )?.let { actions.add(it) }
+        val rew = createRemoteAction(context, android.R.drawable.ic_media_rew, "Mundur 10d", 101, ACTION_PIP_REWIND)
+        val playPause = if (isPlaying) {
+            createRemoteAction(context, android.R.drawable.ic_media_pause, "Jeda", 102, ACTION_PIP_PAUSE)
         } else {
-            createRemoteAction(
-                context,
-                android.R.drawable.ic_media_play,
-                "Putar",
-                103,
-                ACTION_PIP_PLAY
-            )?.let { actions.add(it) }
+            createRemoteAction(context, android.R.drawable.ic_media_play, "Putar", 103, ACTION_PIP_PLAY)
         }
-
-        createRemoteAction(
-            context,
-            android.R.drawable.ic_media_ff,
-            "Maju 10d",
-            104,
-            ACTION_PIP_FORWARD
-        )?.let { actions.add(it) }
-
-        return actions
+        val ff = createRemoteAction(context, android.R.drawable.ic_media_ff, "Maju 10d", 104, ACTION_PIP_FORWARD)
+        return listOfNotNull(rew, playPause, ff)
     }
 
-    fun enterPictureInPicture(activity: Activity, isPlaying: Boolean, videoWidth: Int = 16, videoHeight: Int = 9): Boolean {
+    fun buildPipParams(
+        context: Context,
+        isPlaying: Boolean,
+        videoWidth: Int = 16,
+        videoHeight: Int = 9
+    ): PictureInPictureParams? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        val rational = calculatePipRational(videoWidth, videoHeight)
+        val builder = PictureInPictureParams.Builder()
+            .setAspectRatio(rational)
+            .setActions(buildPipActions(context, isPlaying))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(isPlayerActive && isPlaying)
+            builder.setSeamlessResizeEnabled(true)
+        }
+        return builder.build()
+    }
+
+    fun enterPictureInPicture(
+        activity: Activity,
+        isPlaying: Boolean,
+        videoWidth: Int = 16,
+        videoHeight: Int = 9
+    ): Boolean {
         if (!isPipSupported(activity)) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val rational = calculatePipRational(videoWidth, videoHeight)
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(rational)
-                .setActions(buildPipActions(activity, isPlaying))
-                .build()
-            return activity.enterPictureInPictureMode(params)
+            val params = buildPipParams(activity, isPlaying, videoWidth, videoHeight) ?: return false
+            isEnteringPip = true
+            return try {
+                activity.enterPictureInPictureMode(params)
+            } catch (_: Exception) {
+                isEnteringPip = false
+                false
+            }
         }
         return false
     }
 
-    fun updatePictureInPictureActions(activity: Activity, isPlaying: Boolean, videoWidth: Int = 16, videoHeight: Int = 9) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity.isInPictureInPictureMode) {
-            val rational = calculatePipRational(videoWidth, videoHeight)
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(rational)
-                .setActions(buildPipActions(activity, isPlaying))
-                .build()
-            activity.setPictureInPictureParams(params)
+    fun updatePictureInPictureActions(
+        activity: Activity,
+        isPlaying: Boolean,
+        videoWidth: Int = 16,
+        videoHeight: Int = 9
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val params = buildPipParams(activity, isPlaying, videoWidth, videoHeight) ?: return
+            try {
+                activity.setPictureInPictureParams(params)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun resetPictureInPictureParams(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val builder = PictureInPictureParams.Builder()
+                    .setActions(emptyList())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    builder.setAutoEnterEnabled(false)
+                }
+                activity.setPictureInPictureParams(builder.build())
+            } catch (_: Exception) {}
         }
     }
 }

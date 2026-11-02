@@ -141,9 +141,22 @@ fun rememberExoPlayerWithLifecycle(
 
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
-                    exoPlayer.pause()
-                    onDisposePlayer()
+                Lifecycle.Event.ON_PAUSE -> {
+                    val inPip = activity?.isInPictureInPictureMode == true ||
+                        PlayerPipHelper.isInPipMode ||
+                        PlayerPipHelper.isEnteringPip
+                    if (!inPip) {
+                        exoPlayer.pause()
+                        onDisposePlayer()
+                    }
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    val inPip = activity?.isInPictureInPictureMode == true ||
+                        PlayerPipHelper.isInPipMode
+                    if (!inPip) {
+                        exoPlayer.pause()
+                        onDisposePlayer()
+                    }
                 }
                 Lifecycle.Event.ON_DESTROY -> {
                     exoPlayer.release()
@@ -151,7 +164,6 @@ fun rememberExoPlayerWithLifecycle(
                 else -> {}
             }
         }
-        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)

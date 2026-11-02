@@ -15,23 +15,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import id.miru.app.ui.components.player.PlayerPipHelper
 import id.miru.app.ui.screens.SplashScreen
 import id.miru.app.ui.theme.MiruTheme
 
 class MainActivity : ComponentActivity() {
 
+    private var isPipReceiverRegistered = false
+
     private val pipReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                PlayerPipHelper.ACTION_PIP_PLAY -> PlayerPipHelper.onPlay?.invoke()
-                PlayerPipHelper.ACTION_PIP_PAUSE -> PlayerPipHelper.onPause?.invoke()
+                PlayerPipHelper.ACTION_PIP_PLAY -> {
+                    PlayerPipHelper.onPlay?.invoke()
+                    PlayerPipHelper.updatePictureInPictureActions(
+                        activity = this@MainActivity,
+                        isPlaying = true,
+                        videoWidth = PlayerPipHelper.videoWidth,
+                        videoHeight = PlayerPipHelper.videoHeight
+                    )
+                }
+                PlayerPipHelper.ACTION_PIP_PAUSE -> {
+                    PlayerPipHelper.onPause?.invoke()
+                    PlayerPipHelper.updatePictureInPictureActions(
+                        activity = this@MainActivity,
+                        isPlaying = false,
+                        videoWidth = PlayerPipHelper.videoWidth,
+                        videoHeight = PlayerPipHelper.videoHeight
+                    )
+                }
                 PlayerPipHelper.ACTION_PIP_REWIND -> PlayerPipHelper.onRewind?.invoke()
                 PlayerPipHelper.ACTION_PIP_FORWARD -> PlayerPipHelper.onForward?.invoke()
             }
         }
     }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -73,29 +91,42 @@ class MainActivity : ComponentActivity() {
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         PlayerPipHelper.isInPipMode = isInPictureInPictureMode
+        PlayerPipHelper.isEnteringPip = false
         PlayerPipHelper.onPipModeChanged?.invoke(isInPictureInPictureMode)
+        if (isInPictureInPictureMode) {
+            PlayerPipHelper.updatePictureInPictureActions(
+                activity = this,
+                isPlaying = PlayerPipHelper.isPlaying,
+                videoWidth = PlayerPipHelper.videoWidth,
+                videoHeight = PlayerPipHelper.videoHeight
+            )
+        }
     }
 
     private fun registerPipReceiver() {
+        if (isPipReceiverRegistered) return
         val filter = IntentFilter().apply {
             addAction(PlayerPipHelper.ACTION_PIP_PLAY)
             addAction(PlayerPipHelper.ACTION_PIP_PAUSE)
             addAction(PlayerPipHelper.ACTION_PIP_REWIND)
             addAction(PlayerPipHelper.ACTION_PIP_FORWARD)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(pipReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.RECEIVER_EXPORTED
         } else {
-            registerReceiver(pipReceiver, filter)
+            0
         }
+        ContextCompat.registerReceiver(this, pipReceiver, filter, flags)
+        isPipReceiverRegistered = true
     }
 
     private fun unregisterReceiverSafely() {
+        if (!isPipReceiverRegistered) return
         try {
             unregisterReceiver(pipReceiver)
         } catch (_: IllegalArgumentException) {}
+        isPipReceiverRegistered = false
     }
-
     private fun configureHighRefreshRate() {
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             display?.supportedModes?.maxByOrNull { it.refreshRate }
