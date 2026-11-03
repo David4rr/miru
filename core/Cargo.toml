@@ -1,6 +1,6 @@
 [package]
 name = "miru-core"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 description = "Embedded Rust streaming & proxy daemon for Miru Android"
 authors = ["Miru Contributors"]

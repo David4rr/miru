@@ -125,7 +125,10 @@ fun rememberExoPlayerWithLifecycle(
             .setPrioritizeTimeOverSizeThresholds(true)
             .setBackBuffer(10_000, true)
             .build()
-        ExoPlayer.Builder(context).setLoadControl(loadControl).build().apply { playWhenReady = true }
+        ExoPlayer.Builder(context).setLoadControl(loadControl).build().apply {
+            playWhenReady = true
+            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        }
     }
 
     DisposableEffect(lifecycleOwner) {

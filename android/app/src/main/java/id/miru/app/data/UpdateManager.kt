@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.9"
+        "0.3.10"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,24 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.10",
+                versionName = "0.3.10",
+                title = "Miru Android v0.3.10 (Video Stream Bottom Green Line Elimination)",
+                body = """
+                    ### Miru Android v0.3.10
+
+                    #### 🟢 Eliminasi Garis Hijau di Bagian Bawah Layar Video:
+                    - **Penyebab Teknis:** Garis hijau tipis (1-2px) di bagian bawah video disebabkan oleh fenomena macroblock hardware video decoder (MediaCodec) yang mengalokasikan buffer kelipatan 16 (1080p dipad ke 1088 baris). Memori padding yang tidak diinisialisasi dalam ruang warna YUV (Y=0, U=0, V=0) diterjemahkan oleh GPU sebagai warna hijau neon cerah.
+                    - **Mode Scaling Cropping Perangkat Keras:** Mengonfigurasi `videoScalingMode = SCALE_TO_FIT_WITH_CROPPING` pada ExoPlayer untuk memotong baris padding macroblock secara native.
+                    - **Integrasi TextureView & Sub-Pixel Safe Edge Transform:** Beralih ke `TextureView` yang terintegrasi penuh ke dalam hardware render tree Android, serta menerapkan micro-scaling (0.2% horizontal, 0.4% vertikal) untuk membersihkan kebocoran bilinear filtering di batas tepi bawah layar.
+                    - **Hasil Bersih di Semua Rasio:** Seluruh mode rasio layar (FIT, FILL, ZOOM) kini bebas 100% dari garis hijau, tanpa mengubah proporsi aspek video maupun mempengaruhi ketajaman subtitle.
+                """.trimIndent(),
+                publishedAt = "2026-11-03",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.10/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.9",
                 versionName = "0.3.9",
