@@ -2,6 +2,7 @@ package id.miru.app.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,7 +48,8 @@ fun FloatingNavFab(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
     isVisible: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    customLabel: String? = null
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -139,30 +141,44 @@ fun FloatingNavFab(
                     }
                 }
 
-                Box(
+                val currentTabObj = NAV_FAB_TABS.getOrNull(selectedTab) ?: NAV_FAB_TABS[0]
+                val fabLabel = if (isExpanded) "Tutup" else (customLabel ?: currentTabObj.title)
+                val fabIcon = if (isExpanded) Icons.Default.Close else currentTabObj.selectedIcon
+                val fabShape = remember { RoundedCornerShape(16.dp) }
+
+                ExtendedFloatingActionButton(
+                    text = {
+                        Text(
+                            text = fabLabel,
+                            color = if (isExpanded) Color.White else CrunchyrollOrange,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.2.sp
+                        )
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = fabIcon,
+                            contentDescription = fabLabel,
+                            tint = CrunchyrollOrange,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .rotate(rotationAngle)
+                        )
+                    },
+                    onClick = { isExpanded = !isExpanded },
+                    expanded = true,
+                    containerColor = Color(0xFF16171D),
+                    contentColor = CrunchyrollOrange,
+                    shape = fabShape,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 8.dp
+                    ),
                     modifier = Modifier
                         .graphicsLayer { scaleX = fabScale; scaleY = fabScale }
-                        .size(54.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF16171D))
-                        .border(1.dp, if (isExpanded) CrunchyrollOrange else Color(0xFF2C2D35), RoundedCornerShape(16.dp))
-                        .clickable(
-                            interactionSource = fabSrc,
-                            indication = null,
-                            onClick = { isExpanded = !isExpanded }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val currentTabObj = NAV_FAB_TABS.getOrNull(selectedTab) ?: NAV_FAB_TABS[0]
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.Close else currentTabObj.selectedIcon,
-                        contentDescription = "Navigasi",
-                        tint = CrunchyrollOrange,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .rotate(rotationAngle)
-                    )
-                }
+                        .border(1.dp, if (isExpanded) CrunchyrollOrange else Color(0xFF2C2D35), fabShape)
+                )
             }
         }
     }

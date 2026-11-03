@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.5"
+        "0.3.6"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,29 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.6",
+                versionName = "0.3.6",
+                title = "Miru Android v0.3.6 (Home Performance Overhaul & Extended FAB)",
+                body = """
+                    ### Miru Android v0.3.6
+
+                    #### 🚀 Optimasi Performa Ekstrem Beranda (60/120Hz Fluid Motion):
+                    - **Downsampling Gambar Perangkat Keras:** Menggunakan pipeline Coil `ImageRequests` khusus dengan decoding resolusi terukur (360x540 untuk poster anime, 480x270 untuk riwayat nonton, 1080x720 untuk banner hero) dengan caching memori dan disk, mencegah lonjakan RAM dan micro-stuttering akibat decoding gambar raksasa di main thread.
+                    - **Eliminasi Beban GPU RenderEffect:** Menghapus runtime `RenderEffect.createBlurEffect` per-frame pada banner carousel, menggantinya dengan scrim gradien vertikal berbasis hardware yang mulus dan tanpa beban komputasi.
+                    - **Item Composition Recycling (Keys & ContentTypes):** Menambahkan `key` stabil dan `contentType` eksplisit pada seluruh item `LazyColumn` dan 8 swimlane horizontal `LazyRow` agar Jetpack Compose dapat mendaur ulang slot table secara instan saat scroll cepat.
+                    - **Pencegahan Recomposisi Tak Perlu:** Menstabilkan referensi callback (`rememberUpdatedState`) dan caching kalkulasi string/brush dengan `remember`.
+                    - **Scroll Debouncing Ringan:** Mengoptimalkan pendeteksian arah scroll pada navigasi bawah untuk menghilangkan alokasi coroutine berlebih pada gesture berfrekuensi tinggi.
+
+                    #### 🏷️ Extended Floating Action Button (FAB Berlabel):
+                    - **FAB Berlabel Teks:** Mengubah tombol aksi melayang dari icon saja menjadi `ExtendedFloatingActionButton` dengan label teks yang jelas dan adaptif ("Beranda", "Jelajah", "Koleksi", "Pengaturan", atau "Tutup" saat menu terbuka).
+                    - **Desain Crunchyroll Minimalis:** Desain gelap OLED (#16171D) dengan aksen oranye khas, border halus, dan transisi animasi spring yang responsif.
+                """.trimIndent(),
+                publishedAt = "2026-11-03",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.6/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.5",
                 versionName = "0.3.5",

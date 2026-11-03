@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,14 +61,22 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val parallaxOffsetProvider: () -> Float = remember {
+    val currentOnAnimeClick by rememberUpdatedState(onAnimeClick)
+    val currentOnContinueWatchClick by rememberUpdatedState(onContinueWatchClick)
+    val currentOnScheduleClick by rememberUpdatedState(onScheduleClick)
+
+    val stableAnimeClick: (AnimeCard) -> Unit = remember { { currentOnAnimeClick(it) } }
+    val stableContinueWatchClick: (WatchHistoryItem) -> Unit = remember { { currentOnContinueWatchClick(it) } }
+    val stableScheduleClick: () -> Unit = remember { { currentOnScheduleClick() } }
+
+    val parallaxOffsetProvider: () -> Float = remember(listState) {
         {
-            if (listState.firstVisibleItemIndex == 0) {
-                listState.firstVisibleItemScrollOffset.toFloat()
-            } else if (listState.firstVisibleItemIndex == 1) {
-                140f + listState.firstVisibleItemScrollOffset.toFloat()
-            } else {
-                1000f
+            val index = listState.firstVisibleItemIndex
+            val offset = listState.firstVisibleItemScrollOffset.toFloat()
+            when (index) {
+                0 -> offset
+                1 -> 140f + offset
+                else -> 1000f
             }
         }
     }
@@ -149,16 +158,16 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 72.dp)
                     ) {
-                        item {
-                            HomeTopHeader(onScheduleClick = onScheduleClick)
+                        item(key = "home_top_header", contentType = "header") {
+                            HomeTopHeader(onScheduleClick = stableScheduleClick)
                         }
 
                         catalog?.let { c ->
                             homeCatalogSwimlanes(
                                 catalog = c,
-                                onAnimeClick = onAnimeClick,
-                                onContinueWatchClick = onContinueWatchClick,
-                                onScheduleClick = onScheduleClick,
+                                onAnimeClick = stableAnimeClick,
+                                onContinueWatchClick = stableContinueWatchClick,
+                                onScheduleClick = stableScheduleClick,
                                 parallaxOffsetProvider = parallaxOffsetProvider,
                                 recommendation = recommendation
                             )

@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import id.miru.app.ui.util.ImageRequests
 import id.miru.app.data.AnimeCard
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkSurface
@@ -44,10 +47,19 @@ fun AnimePosterCard(
     rank: Int? = null,
     customBadge: String? = null
 ) {
+    val cardShape = remember { RoundedCornerShape(8.dp) }
+    val scrimBrush = remember {
+        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)))
+    }
+    val context = LocalContext.current
+    val imageRequest = remember(anime.poster) {
+        ImageRequests.poster(context, anime.poster)
+    }
+
     Column(
         modifier = modifier
             .width(130.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(cardShape)
             .clickable { onClick(anime) }
             .padding(4.dp)
     ) {
@@ -56,11 +68,11 @@ fun AnimePosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(185.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(cardShape)
                 .background(DarkSurfaceVariant)
         ) {
             AsyncImage(
-                model = anime.poster,
+                model = imageRequest,
                 contentDescription = anime.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -72,12 +84,9 @@ fun AnimePosterCard(
                     .fillMaxWidth()
                     .height(60.dp)
                     .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
-                        )
-                    )
+                    .background(scrimBrush)
             )
+
             // Rank Badge (Top-Left)
             if (rank != null) {
                 Box(
@@ -156,12 +165,14 @@ fun AnimePosterCard(
         )
 
         // Subtitle (Genres / Season)
-        val subtitle = if (anime.genres.isNotEmpty()) {
-            anime.genres.take(2).joinToString(", ")
-        } else if (anime.seasonYear != null) {
-            "${anime.seasonYear}"
-        } else {
-            ""
+        val subtitle = remember(anime.genres, anime.seasonYear) {
+            if (anime.genres.isNotEmpty()) {
+                anime.genres.take(2).joinToString(", ")
+            } else if (anime.seasonYear != null) {
+                "${anime.seasonYear}"
+            } else {
+                ""
+            }
         }
 
         if (subtitle.isNotEmpty()) {

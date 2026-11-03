@@ -29,7 +29,7 @@ fun LazyListScope.homeCatalogSwimlanes(
     recommendation: RecommendationResult? = null
 ) {
     if (catalog.hero.isNotEmpty()) {
-        item {
+        item(key = "home_hero_banner", contentType = "hero_banner") {
             HeroBannerCarousel(
                 items = catalog.hero,
                 onItemClick = onAnimeClick,
@@ -41,14 +41,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.continueWatching.isNotEmpty()) {
-        item {
+        item(key = "home_continue_watching", contentType = "row_continue") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionHeader(title = "Lanjutkan Menonton")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(catalog.continueWatching) { item ->
+                items(catalog.continueWatching, key = { "cw_${it.slug}_${it.episode}" }, contentType = { "cw_card" }) { item ->
                     ContinueWatchingCard(item = item, onClick = onContinueWatchClick)
                 }
             }
@@ -56,7 +56,7 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (recommendation != null && recommendation.items.isNotEmpty()) {
-        item {
+        item(key = "home_recommendations", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(
                 title = recommendation.title,
@@ -67,7 +67,7 @@ fun LazyListScope.homeCatalogSwimlanes(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(recommendation.items) { anime ->
+                items(recommendation.items, key = { "rec_${it.id}_${it.slug}" }, contentType = { "anime_card" }) { anime ->
                     AnimePosterCard(anime = anime, onClick = onAnimeClick)
                 }
             }
@@ -75,14 +75,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.airingToday.isNotEmpty()) {
-        item {
+        item(key = "home_airing_today", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(title = "Rilis Hari Ini", onSeeAllClick = onScheduleClick)
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(catalog.airingToday) { scheduleItem ->
+                items(catalog.airingToday, key = { "airing_${it.anime.id}_${it.anime.slug}" }, contentType = { "anime_card" }) { scheduleItem ->
                     val badge = if (scheduleItem.isAired) "Ep ${scheduleItem.episode} • Rilis" else scheduleItem.formattedTime
                     AnimePosterCard(anime = scheduleItem.anime, onClick = onAnimeClick, customBadge = badge)
                 }
@@ -91,14 +91,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.topAiring.isNotEmpty()) {
-        item {
+        item(key = "home_top_airing", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(title = "Sedang Tayang Terpopuler")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                itemsIndexed(catalog.topAiring) { idx, anime ->
+                itemsIndexed(catalog.topAiring, key = { _, anime -> "top_${anime.id}_${anime.slug}" }, contentType = { _, _ -> "anime_card" }) { idx, anime ->
                     AnimePosterCard(anime = anime, onClick = onAnimeClick, rank = if (idx < 3) idx + 1 else null)
                 }
             }
@@ -106,14 +106,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.seasonal.isNotEmpty()) {
-        item {
+        item(key = "home_seasonal", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(title = "Populer Musim Ini")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(catalog.seasonal) { anime ->
+                items(catalog.seasonal, key = { "seasonal_${it.id}_${it.slug}" }, contentType = { "anime_card" }) { anime ->
                     AnimePosterCard(anime = anime, onClick = onAnimeClick)
                 }
             }
@@ -121,14 +121,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.topRated.isNotEmpty()) {
-        item {
+        item(key = "home_top_rated", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(title = "Anime Terbaik (Nilai Tertinggi)")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(catalog.topRated) { anime ->
+                items(catalog.topRated, key = { "rated_${it.id}_${it.slug}" }, contentType = { "anime_card" }) { anime ->
                     AnimePosterCard(anime = anime, onClick = onAnimeClick)
                 }
             }
@@ -136,14 +136,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.upcoming.isNotEmpty()) {
-        item {
+        item(key = "home_upcoming", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(title = "Akan Datang (Segera Hadir)")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(catalog.upcoming) { anime ->
+                items(catalog.upcoming, key = { "upcoming_${it.id}_${it.slug}" }, contentType = { "anime_card" }) { anime ->
                     AnimePosterCard(anime = anime, onClick = onAnimeClick)
                 }
             }
@@ -151,14 +151,14 @@ fun LazyListScope.homeCatalogSwimlanes(
     }
 
     if (catalog.allTimePopular.isNotEmpty()) {
-        item {
+        item(key = "home_all_time_popular", contentType = "row_anime") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(title = "Terpopuler Sepanjang Masa")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(catalog.allTimePopular) { anime ->
+                items(catalog.allTimePopular, key = { "pop_${it.id}_${it.slug}" }, contentType = { "anime_card" }) { anime ->
                     AnimePosterCard(anime = anime, onClick = onAnimeClick)
                 }
             }

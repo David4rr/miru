@@ -1,6 +1,6 @@
 package id.miru.app.ui.components.home
 
-import android.os.Build
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import id.miru.app.ui.util.ImageRequests
 import id.miru.app.data.AnimeCard
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkBackground
@@ -40,6 +41,7 @@ fun HeroBannerItem(
 ) {
     val offsetProvider = parallaxOffsetProvider ?: { parallaxOffset }
     val cardShape = remember { RoundedCornerShape(20.dp) }
+    val genreShape = remember { RoundedCornerShape(6.dp) }
     val cardBorder = remember {
         Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.03f)))
     }
@@ -67,22 +69,18 @@ fun HeroBannerItem(
             .border(1.dp, cardBorder, cardShape)
             .clickable { onItemClick(anime) }
     ) {
+        val context = LocalContext.current
+        val imageRequest = remember(anime.banner, anime.poster) {
+            ImageRequests.heroBanner(context, anime.banner ?: anime.poster)
+        }
         AsyncImage(
-            model = anime.banner ?: anime.poster,
+            model = imageRequest,
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer {
-                val scroll = offsetProvider()
-                scaleX = 1.05f; scaleY = 1.05f
+                scaleX = 1.05f
+                scaleY = 1.05f
                 translationX = pageOffset * 35f
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val blurPx = (scroll / 18f).coerceIn(0f, 24f)
-                    if (blurPx > 0.5f) {
-                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                            blurPx, blurPx, android.graphics.Shader.TileMode.CLAMP
-                        ).asComposeRenderEffect()
-                    }
-                }
             }
         )
 
@@ -148,11 +146,11 @@ fun HeroBannerItem(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (anime.genres.isNotEmpty()) {
+            val topGenres = remember(anime.genres) { anime.genres.take(3) }
+            if (topGenres.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    anime.genres.take(3).forEach { genre ->
-                        val genreShape = RoundedCornerShape(6.dp)
+                    topGenres.forEach { genre ->
                         Box(
                             modifier = Modifier
                                 .clip(genreShape)

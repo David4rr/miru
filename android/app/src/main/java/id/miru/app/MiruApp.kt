@@ -33,7 +33,7 @@ class MiruApp : Application(), ImageLoaderFactory {
                     .maxSizeBytes(150L * 1024 * 1024)
                     .build()
             }
-            .crossfade(true)
+            .crossfade(false)
             .respectCacheHeaders(false)
             .build()
     }

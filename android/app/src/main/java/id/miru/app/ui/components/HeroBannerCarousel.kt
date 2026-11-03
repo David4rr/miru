@@ -87,6 +87,7 @@ fun HeroBannerCarousel(
 
             HorizontalPager(
                 state = pagerState,
+                key = { page -> items.getOrNull(page)?.id ?: page },
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 pageSpacing = 12.dp,
                 modifier = Modifier.fillMaxWidth()

@@ -35,6 +35,7 @@ import androidx.core.view.WindowInsetsCompat
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.AppRelease
 import id.miru.app.data.UpdateManager
+import id.miru.app.data.WatchHistoryItem
 import id.miru.app.ui.components.FloatingNavFab
 import id.miru.app.ui.components.UpdateAvailableBottomSheet
 import id.miru.app.ui.components.UpdateBanner
@@ -47,7 +48,6 @@ import id.miru.app.ui.screens.SearchScreen
 import id.miru.app.ui.screens.SettingsScreen
 import id.miru.app.ui.screens.TerminalScreen
 import id.miru.app.ui.theme.DarkOled
-import kotlin.math.absoluteValue
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,19 +66,30 @@ fun MainApp() {
     var fabJob by remember { mutableStateOf<Job?>(null) }
     var isFabVisible by remember { mutableStateOf(true) }
     var lastAnime by remember { mutableStateOf<AnimeCard?>(null) }
-    if (selectedAnime != null) lastAnime = selectedAnime
     var lastSession by remember { mutableStateOf<Pair<AnimeCard, Int>?>(null) }
+    if (selectedAnime != null) lastAnime = selectedAnime
     if (activePlayingSession != null) lastSession = activePlayingSession
-
+    val openWatchItem: (WatchHistoryItem) -> Unit = { item ->
+        val card = AnimeCard(id = 0L, slug = item.slug, title = item.title, poster = item.poster, status = item.type)
+        activePlayingSession = Pair(card, item.episode)
+    }
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y.absoluteValue > 4f) {
-                    if (isFabVisible) isFabVisible = false
-                    fabJob?.cancel()
-                    fabJob = coroutineScope.launch {
-                        delay(600)
+                val delta = available.y
+                if (delta < -10f) {
+                    if (isFabVisible) {
+                        isFabVisible = false
+                        fabJob?.cancel()
+                        fabJob = coroutineScope.launch {
+                            delay(1200)
+                            isFabVisible = true
+                        }
+                    }
+                } else if (delta > 10f) {
+                    if (!isFabVisible) {
                         isFabVisible = true
+                        fabJob?.cancel()
                     }
                 }
                 return Offset.Zero
@@ -148,7 +159,7 @@ fun MainApp() {
                     Column(modifier = Modifier.fillMaxSize().background(DarkOled).statusBarsPadding()) {
                         if (!isUpdateBannerDismissed) {
                             availableUpdate?.let { rel ->
-                                UpdateBanner(release = rel, onViewUpdateClick = { showUpdateSheet = true }, onDismissClick = { isUpdateBannerDismissed = true })
+                                UpdateBanner(rel, { showUpdateSheet = true }, { isUpdateBannerDismissed = true })
                             }
                         }
                         Box(modifier = Modifier.weight(1f)) {
@@ -161,20 +172,11 @@ fun MainApp() {
                                 when (tab) {
                                     0 -> HomeScreen(
                                         onAnimeClick = { selectedAnime = it },
-                                        onContinueWatchClick = { item ->
-                                            val card = AnimeCard(id = 0, slug = item.slug, title = item.title, poster = item.poster, status = item.type)
-                                            activePlayingSession = Pair(card, item.episode)
-                                        },
+                                        onContinueWatchClick = openWatchItem,
                                         onScheduleClick = { showScheduleScreen = true }
                                     )
                                     1 -> SearchScreen(onAnimeClick = { selectedAnime = it })
-                                    2 -> LibraryScreen(
-                                        onAnimeClick = { selectedAnime = it },
-                                        onHistoryClick = { item ->
-                                            val card = AnimeCard(id = 0, slug = item.slug, title = item.title, poster = item.poster, status = item.type)
-                                            activePlayingSession = Pair(card, item.episode)
-                                        }
-                                    )
+                                    2 -> LibraryScreen(onAnimeClick = { selectedAnime = it }, onHistoryClick = openWatchItem)
                                     3 -> SettingsScreen(onOpenTerminal = { showTerminalScreen = true })
                                 }
                             }
