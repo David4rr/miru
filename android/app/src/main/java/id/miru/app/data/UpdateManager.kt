@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.8"
+        "0.3.9"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,24 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.9",
+                versionName = "0.3.9",
+                title = "Miru Android v0.3.9 (Home 500 Error Fix & AniList GraphQL Optimization)",
+                body = """
+                    ### Miru Android v0.3.9
+
+                    #### 🛠️ Perbaikan Error Koneksi 500 di Beranda:
+                    - **Optimasi Eksekusi GraphQL AniList:** Menghapus permintaan field `nextAiringEpisode` yang redundan pada set anime historis (`topRated`, `upcoming`, `allTime`) yang sebelumnya memicu full-table scan pada server AniList (>30 detik). Latensi query turun drastis dari 32 detik menjadi 1.15 detik (~28x lebih cepat).
+                    - **Peningkatan Timeout Reqwest Client:** Menaikkan batas waktu timeout dari 12 detik menjadi 30 detik untuk memberikan ruang toleransi jitter jaringan seluler.
+                    - **Tabel Cache Dedikasi & Stale-If-Error Fallback:** Mengalihkan penyimpanan cache beranda dan jadwal ke tabel `anilist_cache` dengan mekanisme fallback stale-cache, sehingga aplikasi tetap menyajikan katalog beranda secara instan tanpa pernah memunculkan error 500 meskipun koneksi internet sempat terputus.
+                    - **Modularisasi Modul AniList Rust Core:** Memecah `core/src/api/anilist.rs` menjadi modul-modul independen yang terisolasi dan mudah dirawat.
+                """.trimIndent(),
+                publishedAt = "2026-11-03",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.9/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.8",
                 versionName = "0.3.8",
