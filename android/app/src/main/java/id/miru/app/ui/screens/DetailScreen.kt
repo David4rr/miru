@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,8 @@ fun DetailScreen(
     onPlayEpisodeClick: (AnimeCard, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentOnBackClick by rememberUpdatedState(onBackClick)
+    val currentOnPlayEpisodeClick by rememberUpdatedState(onPlayEpisodeClick)
     var currentAnime by remember(anime) { mutableStateOf(anime) }
     var isBookmarked by remember { mutableStateOf(false) }
     var watchedHistory by remember { mutableStateOf<WatchHistoryItem?>(null) }
@@ -52,8 +55,7 @@ fun DetailScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    BackHandler { onBackClick() }
-
+    BackHandler { currentOnBackClick() }
     LaunchedEffect(currentAnime.slug) {
         launch { ApiClient.getBookmarks().onSuccess { list -> isBookmarked = list.any { it.slug == currentAnime.slug } } }
         launch { ApiClient.getHistory().onSuccess { list -> watchedHistory = list.firstOrNull { it.slug == currentAnime.slug } } }
@@ -127,7 +129,7 @@ fun DetailScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            item {
+            item(key = "detail_hero_header", contentType = "header") {
                 DetailHeroHeader(
                     anime = currentAnime,
                     resumeEpisode = resumeEpisode,
@@ -140,7 +142,7 @@ fun DetailScreen(
                 )
             }
 
-            item {
+            item(key = "detail_synopsis", contentType = "synopsis") {
                 Spacer(modifier = Modifier.height(20.dp))
                 DetailSynopsisSection(
                     synopsis = currentSynopsis,
@@ -164,10 +166,12 @@ fun DetailScreen(
             }
 
             if (editions.size > 1) {
-                item { DetailEditionsSection(editions = editions, onEditionClick = { ed -> currentAnime = ed.toAnimeCard() }) }
+                item(key = "detail_editions", contentType = "editions") {
+                    DetailEditionsSection(editions = editions, onEditionClick = { ed -> currentAnime = ed.toAnimeCard() })
+                }
             }
 
-            item {
+            item(key = "detail_episodes", contentType = "episodes") {
                 Spacer(modifier = Modifier.height(24.dp))
                 DetailEpisodeList(
                     totalEpisodes = totalEpisodes,
@@ -175,7 +179,7 @@ fun DetailScreen(
                     resumeEpisode = resumeEpisode,
                     currentProgress = currentProgress,
                     isUpcoming = currentAnime.isNotYetReleased,
-                    onEpisodeClick = { ep -> onPlayEpisodeClick(currentAnime, ep) }
+                    onEpisodeClick = { ep -> currentOnPlayEpisodeClick(currentAnime, ep) }
                 )
             }
         }
@@ -185,9 +189,9 @@ fun DetailScreen(
             scrollOffset = scrollOffset,
             resumeEpisode = resumeEpisode,
             isBookmarked = isBookmarked,
-            onBackClick = onBackClick,
+            onBackClick = currentOnBackClick,
             onToggleBookmark = toggleBookmark,
-            onPlayEpisodeClick = { ep -> onPlayEpisodeClick(currentAnime, ep) }
+            onPlayEpisodeClick = { ep -> currentOnPlayEpisodeClick(currentAnime, ep) }
         )
     }
 }

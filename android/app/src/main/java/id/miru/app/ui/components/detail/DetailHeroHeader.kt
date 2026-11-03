@@ -10,8 +10,10 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import id.miru.app.ui.util.ImageRequests
 import id.miru.app.data.AnimeCard
 import id.miru.app.data.AudioMode
 import id.miru.app.ui.components.OrangeButton
@@ -45,9 +48,22 @@ fun DetailHeroHeader(
     onAudioModeChange: (AudioMode) -> Unit = {},
     hasDub: Boolean = true
 ) {
+    val context = LocalContext.current
+    val imageRequest = remember(anime.banner, anime.poster) {
+        ImageRequests.heroBanner(context, anime.banner ?: anime.poster)
+    }
+    val scrimBrush = remember {
+        Brush.verticalGradient(
+            colors = listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f), DarkBackground),
+            startY = 60f
+        )
+    }
+    val genreShape = remember { RoundedCornerShape(6.dp) }
+    val genreBorder = remember { Color(0xFF26262B) }
+
     Box(modifier = modifier.fillMaxWidth().height(270.dp).clipToBounds()) {
         AsyncImage(
-            model = anime.banner ?: anime.poster,
+            model = imageRequest,
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -61,12 +77,7 @@ fun DetailHeroHeader(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, DarkBackground.copy(alpha = 0.6f), DarkBackground),
-                        startY = 60f
-                    )
-                )
+                .background(scrimBrush)
         )
     }
 
@@ -110,9 +121,9 @@ fun DetailHeroHeader(
             anime.displayGenres.forEach { g ->
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(genreShape)
                         .background(DarkSurfaceVariant)
-                        .border(1.dp, Color(0xFF26262B), RoundedCornerShape(6.dp))
+                        .border(1.dp, genreBorder, genreShape)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(text = g, fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.Medium)

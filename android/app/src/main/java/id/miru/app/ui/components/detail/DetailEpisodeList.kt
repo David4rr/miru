@@ -31,12 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import id.miru.app.ui.util.ImageRequests
 import id.miru.app.data.ApiClient
 import id.miru.app.data.getSetting
 import id.miru.app.data.saveSetting
@@ -57,6 +59,10 @@ fun DetailEpisodeList(
     onEpisodeClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val imageRequest = remember(posterUrl) { ImageRequests.thumbnail(context, posterUrl) }
+    val rowShape = remember { RoundedCornerShape(8.dp) }
+    val thumbShape = remember { RoundedCornerShape(6.dp) }
     val scope = rememberCoroutineScope()
     var isAscending by remember { mutableStateOf(true) }
 
@@ -125,11 +131,11 @@ fun DetailEpisodeList(
                     val isInProgress = epNum == resumeEpisode && currentProgress in 1..84
 
                     Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(DarkSurface).clickable { onEpisodeClick(epNum) }.padding(10.dp),
+                        modifier = Modifier.fillMaxWidth().clip(rowShape).background(DarkSurface).clickable { onEpisodeClick(epNum) }.padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.width(90.dp).height(56.dp).clip(RoundedCornerShape(6.dp)).background(BorderSubtle)) {
-                            AsyncImage(model = posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        Box(modifier = Modifier.width(90.dp).height(56.dp).clip(thumbShape).background(BorderSubtle)) {
+                            AsyncImage(model = imageRequest, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = CrunchyOrange, modifier = Modifier.size(22.dp))
                             }

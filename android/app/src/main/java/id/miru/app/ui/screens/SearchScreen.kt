@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,12 +59,12 @@ fun SearchScreen(
     onAnimeClick: (AnimeCard) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentOnAnimeClick by rememberUpdatedState(onAnimeClick)
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<AnimeCard>>(emptyList()) }
     var browseParams by remember { mutableStateOf(CatalogBrowseParams()) }
     var isSearching by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
-
     LaunchedEffect(searchQuery, browseParams) {
         val trimmed = searchQuery.trim()
         if (trimmed.isNotEmpty()) {
@@ -158,8 +159,12 @@ fun SearchScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(searchResults, key = { it.id }) { anime ->
-                            AnimePosterCard(anime = anime, onClick = onAnimeClick, modifier = Modifier.fillMaxWidth())
+                        items(
+                            items = searchResults,
+                            key = { it.id },
+                            contentType = { "anime_card" }
+                        ) { anime ->
+                            AnimePosterCard(anime = anime, onClick = currentOnAnimeClick, modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }

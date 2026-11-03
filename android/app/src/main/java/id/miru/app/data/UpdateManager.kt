@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.6"
+        "0.3.7"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,28 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.7",
+                versionName = "0.3.7",
+                title = "Miru Android v0.3.7 (App-Wide Full-Stack Performance Overhaul)",
+                body = """
+                    ### Miru Android v0.3.7
+
+                    #### ⚡ Optimasi Kecepatan & Performa Menyeluruh (App-Wide 60/120Hz):
+                    - **Pipeline Coil Gambar Global:** Konfigurasi memori cache 25% RAM, disk cache 250MB, hardware bitmap decoding (zero-copy GPU), dan penonaktifan crossfade saat scroll di seluruh aplikasi.
+                    - **Downsampling Terpusat Menyeluruh:** Seluruh gambar di layar Pencarian, Detail Anime, Jelajah, Koleksi, Jadwal Rilis, dan Pemutar Video kini menggunakan `ImageRequests` hardware-downscaled (`poster`, `thumbnail`, `heroBanner`, dan `avatar`).
+                    - **Daur Ulang Komposisi di Semua Layar:** Menambahkan `key` stabil dan `contentType` eksplisit pada seluruh `LazyVerticalGrid`, `LazyColumn`, dan `LazyRow` di layar Pencarian, Detail, Koleksi, dan Jadwal untuk scrolling tanpa frame drops.
+                    - **Stabilisasi Rekomposisi Callback:** Membungkus seluruh lambda klik dan interaksi dengan `rememberUpdatedState` untuk mengeliminasi pohon rekomposisi yang tidak perlu.
+
+                    #### 🗄️ Akselerasi Database SQLite Rust Core:
+                    - **Mode WAL & In-Memory Cache:** Mengaktifkan `PRAGMA journal_mode = WAL`, `PRAGMA synchronous = NORMAL`, dan 64MB SQLite in-memory cache untuk pembacaan dan penulisan concurrent tanpa locking.
+                    - **Indeks Kecepatan Tinggi:** Menambahkan indeks khusus pada tabel `watch_history`, `bookmarks`, `search_cache`, dan `anilist_cache` untuk respons database instan.
+                """.trimIndent(),
+                publishedAt = "2026-11-03",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.7/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.6",
                 versionName = "0.3.6",

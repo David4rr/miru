@@ -30,9 +30,10 @@ class MiruApp : Application(), ImageLoaderFactory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("miru_image_cache"))
-                    .maxSizeBytes(150L * 1024 * 1024)
+                    .maxSizeBytes(250L * 1024 * 1024)
                     .build()
             }
+            .allowHardware(true)
             .crossfade(false)
             .respectCacheHeaders(false)
             .build()

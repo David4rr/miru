@@ -46,4 +46,16 @@ object ImageRequests {
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()
     }
+
+    fun avatar(context: Context, url: String?): ImageRequest {
+        return ImageRequest.Builder(context)
+            .data(url)
+            .crossfade(false)
+            .size(160, 160)
+            .scale(Scale.FILL)
+            .precision(Precision.INEXACT)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
 }

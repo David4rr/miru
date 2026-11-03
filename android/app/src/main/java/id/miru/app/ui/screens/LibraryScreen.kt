@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +60,9 @@ fun LibraryScreen(
     onHistoryClick: (WatchHistoryItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentOnAnimeClick by rememberUpdatedState(onAnimeClick)
+    val currentOnHistoryClick by rememberUpdatedState(onHistoryClick)
+    val tabShape = remember { RoundedCornerShape(8.dp) }
     var selectedTab by remember { mutableIntStateOf(0) }
     var bookmarks by remember { mutableStateOf<List<BookmarkItem>>(emptyList()) }
     var history by remember { mutableStateOf<List<WatchHistoryItem>>(emptyList()) }
@@ -97,7 +101,7 @@ fun LibraryScreen(
                 val isSelected = selectedTab == idx
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(tabShape)
                         .background(if (isSelected) CrunchyOrange else DarkSurfaceVariant)
                         .clickable { selectedTab = idx }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -132,8 +136,15 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(bookmarks) { item ->
-                        AnimePosterCard(anime = AnimeCard(id = 0, slug = item.slug, title = item.title, poster = item.poster, status = item.type), onClick = onAnimeClick)
+                    items(
+                        items = bookmarks,
+                        key = { "bm_${it.slug}" },
+                        contentType = { "bookmark_card" }
+                    ) { item ->
+                        val animeCard = remember(item.slug, item.title, item.poster, item.type) {
+                            AnimeCard(id = 0, slug = item.slug, title = item.title, poster = item.poster, status = item.type)
+                        }
+                        AnimePosterCard(anime = animeCard, onClick = currentOnAnimeClick)
                     }
                 }
             }
@@ -154,14 +165,18 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(history) { item ->
+                    items(
+                        items = history,
+                        key = { "hist_${it.slug}_${it.episode}_${it.id ?: 0}" },
+                        contentType = { "history_row" }
+                    ) { item ->
                         HistoryRowItem(
                             item = item,
-                            onClick = { onHistoryClick(item) },
+                            onClick = { currentOnHistoryClick(item) },
                             onDeleteClick = {
                                 scope.launch {
                                     ApiClient.deleteHistory(item.slug)
-                                    history = history.filter { it.slug != item.slug }
+                                    history = history.filter { h -> h.slug != item.slug }
                                 }
                             }
                         )

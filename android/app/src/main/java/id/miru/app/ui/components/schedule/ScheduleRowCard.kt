@@ -22,8 +22,10 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -32,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import id.miru.app.ui.util.ImageRequests
 import id.miru.app.data.ScheduleItem
 import id.miru.app.ui.theme.CrunchyrollOrange
 import id.miru.app.ui.theme.DarkSurface
@@ -46,12 +49,18 @@ fun ScheduleRowCard(
     modifier: Modifier = Modifier
 ) {
     val anime = item.anime
+    val context = LocalContext.current
+    val imageRequest = remember(anime.poster) { ImageRequests.poster(context, anime.poster) }
+    val cardShape = remember { RoundedCornerShape(10.dp) }
+    val thumbShape = remember { RoundedCornerShape(6.dp) }
+    val badgeShape = remember { RoundedCornerShape(4.dp) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(cardShape)
             .background(DarkSurface)
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.05f), cardShape)
             .clickable { onClick() }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -59,11 +68,11 @@ fun ScheduleRowCard(
         Box(
             modifier = Modifier
                 .size(width = 64.dp, height = 90.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(thumbShape)
                 .background(DarkSurfaceVariant)
         ) {
             AsyncImage(
-                model = anime.poster,
+                model = imageRequest,
                 contentDescription = anime.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -79,10 +88,9 @@ fun ScheduleRowCard(
             ) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(badgeShape)
                         .background(CrunchyrollOrange.copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(imageVector = Icons.Default.Schedule, contentDescription = null, tint = CrunchyrollOrange, modifier = Modifier.size(12.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -91,7 +99,7 @@ fun ScheduleRowCard(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(badgeShape)
                         .background(Color.White.copy(alpha = 0.1f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
@@ -100,7 +108,7 @@ fun ScheduleRowCard(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(badgeShape)
                         .background(if (item.isAired) Color(0xFF1E3A2F) else Color.White.copy(alpha = 0.08f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {

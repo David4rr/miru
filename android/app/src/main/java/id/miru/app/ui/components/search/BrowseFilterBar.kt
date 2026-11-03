@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,16 +40,17 @@ fun BrowseFilterBar(
     onUpdateParams: (CatalogBrowseParams) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val chipShape = remember { RoundedCornerShape(8.dp) }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxWidth()
     ) {
-        item {
+        item(key = "filter_btn", contentType = "filter_button") {
             val hasActive = params.hasActiveFilters
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(chipShape)
                     .background(if (hasActive) CrunchyOrange else DarkSurfaceVariant)
                     .clickable(onClick = onOpenFilters)
                     .padding(horizontal = 12.dp, vertical = 7.dp),
@@ -71,35 +73,35 @@ fun BrowseFilterBar(
         }
 
         if (params.genre != null) {
-            item {
+            item(key = "filter_genre", contentType = "active_chip") {
                 ActiveFilterChip(label = "Genre: ${params.genre}") {
                     onUpdateParams(params.copy(genre = null))
                 }
             }
         }
         if (params.format != null) {
-            item {
+            item(key = "filter_format", contentType = "active_chip") {
                 ActiveFilterChip(label = "Format: ${params.format}") {
                     onUpdateParams(params.copy(format = null))
                 }
             }
         }
         if (params.season != null) {
-            item {
+            item(key = "filter_season", contentType = "active_chip") {
                 ActiveFilterChip(label = "Musim: ${params.season}") {
                     onUpdateParams(params.copy(season = null))
                 }
             }
         }
         if (params.year != null) {
-            item {
+            item(key = "filter_year", contentType = "active_chip") {
                 ActiveFilterChip(label = "Tahun: ${params.year}") {
                     onUpdateParams(params.copy(year = null))
                 }
             }
         }
         if (params.status != null) {
-            item {
+            item(key = "filter_status", contentType = "active_chip") {
                 ActiveFilterChip(label = "Status: ${params.status}") {
                     onUpdateParams(params.copy(status = null))
                 }
@@ -107,10 +109,10 @@ fun BrowseFilterBar(
         }
 
         if (!params.hasActiveFilters) {
-            items(POPULAR_GENRES) { genre ->
+            items(POPULAR_GENRES, key = { "genre_$it" }, contentType = { "genre_chip" }) { genre ->
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(chipShape)
                         .background(DarkSurfaceVariant)
                         .clickable { onUpdateParams(params.copy(genre = genre)) }
                         .padding(horizontal = 14.dp, vertical = 7.dp)

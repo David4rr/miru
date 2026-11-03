@@ -20,8 +20,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import id.miru.app.ui.util.ImageRequests
 import id.miru.app.data.WatchHistoryItem
 import id.miru.app.ui.theme.CrunchyOrange
 import id.miru.app.ui.theme.DarkSurface
@@ -44,10 +47,15 @@ fun HistoryRowItem(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val imageRequest = remember(item.poster) { ImageRequests.thumbnail(context, item.poster) }
+    val cardShape = remember { RoundedCornerShape(8.dp) }
+    val thumbShape = remember { RoundedCornerShape(6.dp) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(cardShape)
             .background(DarkSurface)
             .clickable { onClick() }
             .padding(10.dp),
@@ -56,11 +64,11 @@ fun HistoryRowItem(
         Box(
             modifier = Modifier
                 .size(width = 96.dp, height = 58.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(thumbShape)
                 .background(DarkSurfaceVariant)
         ) {
             AsyncImage(
-                model = item.poster,
+                model = imageRequest,
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

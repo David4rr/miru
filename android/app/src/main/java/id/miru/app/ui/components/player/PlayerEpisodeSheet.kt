@@ -71,7 +71,7 @@ fun PlayerEpisodeSheet(
     var selectedChunkIndex by remember(totalEpisodes, currentEpisode) {
         mutableIntStateOf(findChunkIndexForEpisode(currentEpisode).coerceIn(0, (chunks.size - 1).coerceAtLeast(0)))
     }
-
+    val itemShape = remember { RoundedCornerShape(8.dp) }
     val displayedEpisodes = remember(totalEpisodes, selectedChunkIndex, isAscending) {
         val range = if (chunks.isNotEmpty()) {
             val chunk = chunks.getOrNull(selectedChunkIndex) ?: chunks[0]
@@ -135,14 +135,18 @@ fun PlayerEpisodeSheet(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     modifier = Modifier.heightIn(max = 280.dp)
                 ) {
-                    items(displayedEpisodes, key = { it }) { ep ->
+                    items(
+                        items = displayedEpisodes,
+                        key = { it },
+                        contentType = { "episode_grid_item" }
+                    ) { ep ->
                         val isSelected = ep == currentEpisode
                         Box(
                             modifier = Modifier
                                 .height(44.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(itemShape)
                                 .background(if (isSelected) CrunchyOrange else DarkSurface)
-                                .border(1.dp, if (isSelected) CrunchyOrange else Color(0xFF2E303B), RoundedCornerShape(8.dp))
+                                .border(1.dp, if (isSelected) CrunchyOrange else Color(0xFF2E303B), itemShape)
                                 .clickable {
                                     onSelectEpisode(ep)
                                     onDismissRequest()

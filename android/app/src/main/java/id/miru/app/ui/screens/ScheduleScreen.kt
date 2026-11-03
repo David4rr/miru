@@ -3,19 +3,7 @@ package id.miru.app.ui.screens
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -34,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,12 +48,15 @@ fun ScheduleScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentOnAnimeClick by rememberUpdatedState(onAnimeClick)
+    val currentOnBackClick by rememberUpdatedState(onBackClick)
+    val dayPillShape = remember { RoundedCornerShape(8.dp) }
+    val dotShape = remember { RoundedCornerShape(3.dp) }
     var schedule by remember { mutableStateOf<WeeklySchedule?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedDayIndex by remember { mutableIntStateOf(0) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-
     fun loadSchedule() {
         isLoading = true
         errorMessage = null
@@ -95,7 +87,7 @@ fun ScheduleScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
+            IconButton(onClick = currentOnBackClick) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
             }
             Spacer(modifier = Modifier.width(4.dp))
@@ -129,12 +121,16 @@ fun ScheduleScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    itemsIndexed(currentDays) { index, day ->
+                    itemsIndexed(
+                        items = currentDays,
+                        key = { _, day -> "day_${day.dayKey}" },
+                        contentType = { _, _ -> "day_pill" }
+                    ) { index, day ->
                         val isSelected = index == selectedDayIndex
                         val isToday = day.isToday
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(dayPillShape)
                                 .background(if (isSelected) CrunchyrollOrange else DarkSurfaceVariant)
                                 .clickable { selectedDayIndex = index }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -151,7 +147,7 @@ fun ScheduleScreen(
                                     Box(
                                         modifier = Modifier
                                             .size(6.dp)
-                                            .clip(RoundedCornerShape(3.dp))
+                                            .clip(dotShape)
                                             .background(CrunchyrollOrange)
                                     )
                                 }
@@ -177,8 +173,12 @@ fun ScheduleScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(items, key = { it.id }) { scheduleItem ->
-                            ScheduleRowCard(item = scheduleItem, onClick = { onAnimeClick(scheduleItem.anime) })
+                        items(
+                            items = items,
+                            key = { "sch_${it.id}" },
+                            contentType = { "schedule_card" }
+                        ) { scheduleItem ->
+                            ScheduleRowCard(item = scheduleItem, onClick = { currentOnAnimeClick(scheduleItem.anime) })
                         }
                     }
                 }

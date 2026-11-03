@@ -21,6 +21,9 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +57,10 @@ fun SearchTrendingSection(
     onTagClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentOnTagClick by rememberUpdatedState(onTagClick)
+    val chipShape = remember { RoundedCornerShape(8.dp) }
+    val trendingBg = remember { Color(0xFF1B1C23) }
+    val trendingBorder = remember { Color(0xFF2C2E3A) }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -83,10 +90,10 @@ fun SearchTrendingSection(
             TRENDING_SEARCHES.forEachIndexed { idx, term ->
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1B1C23))
-                        .border(1.dp, Color(0xFF2C2E3A), RoundedCornerShape(8.dp))
-                        .clickable { onTagClick(term) }
+                        .clip(chipShape)
+                        .background(trendingBg)
+                        .border(1.dp, trendingBorder, chipShape)
+                        .clickable { currentOnTagClick(term) }
                         .padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -124,9 +131,9 @@ fun SearchTrendingSection(
             POPULAR_GENRES.forEach { genre ->
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(chipShape)
                         .background(DarkSurfaceVariant)
-                        .clickable { onTagClick(genre) }
+                        .clickable { currentOnTagClick(genre) }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(

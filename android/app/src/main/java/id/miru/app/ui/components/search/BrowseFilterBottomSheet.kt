@@ -142,6 +142,7 @@ private fun <T, K> FilterSection(
     labelSelector: (T) -> String,
     onSelect: (K?) -> Unit
 ) {
+    val chipShape = remember { RoundedCornerShape(8.dp) }
     Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextMuted, modifier = Modifier.padding(bottom = 8.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEach { item ->
@@ -149,9 +150,8 @@ private fun <T, K> FilterSection(
             val isSelected = selectedKey == key
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(chipShape)
                     .background(if (isSelected) CrunchyOrange else DarkSurfaceVariant)
-                    .clickable { onSelect(if (isSelected) null else key) }
                     .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
                 Text(

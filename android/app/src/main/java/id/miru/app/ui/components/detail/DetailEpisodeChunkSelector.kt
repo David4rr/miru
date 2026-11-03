@@ -14,6 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,9 +62,9 @@ fun DetailEpisodeChunkSelector(
     modifier: Modifier = Modifier
 ) {
     if (chunks.size <= 1) return
-
+    val currentOnChunkSelected by rememberUpdatedState(onChunkSelected)
+    val chipShape = remember { RoundedCornerShape(8.dp) }
     val listState = rememberLazyListState()
-
     LaunchedEffect(selectedChunkIndex) {
         val safeIdx = selectedChunkIndex.coerceIn(0, (chunks.size - 1).coerceAtLeast(0))
         listState.animateScrollToItem(safeIdx)
@@ -73,13 +76,17 @@ fun DetailEpisodeChunkSelector(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxWidth()
     ) {
-        itemsIndexed(chunks, key = { _, chunk -> chunk.index }) { idx, chunk ->
+        itemsIndexed(
+            items = chunks,
+            key = { _, chunk -> chunk.index },
+            contentType = { _, _ -> "chunk_pill" }
+        ) { idx, chunk ->
             val isSelected = idx == selectedChunkIndex
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(chipShape)
                     .background(if (isSelected) CrunchyOrange else DarkSurfaceVariant)
-                    .clickable { onChunkSelected(chunk) }
+                    .clickable { currentOnChunkSelected(chunk) }
                     .padding(horizontal = 14.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center
             ) {
