@@ -8,6 +8,7 @@ use std::sync::Arc;
 pub mod anichan;
 pub mod hianime;
 pub mod otakudesu;
+pub mod otakudesu_extractor;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 

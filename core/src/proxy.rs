@@ -111,14 +111,7 @@ pub async fn proxy_video_handler(
         return (StatusCode::BAD_REQUEST, format!("Disallowed URL: {}", err)).into_response();
     }
     let url = params.url;
-    let referer = params.referer.unwrap_or_default();
-    let effective_referer = if !referer.is_empty() {
-        referer
-    } else if url.contains("drama") || url.contains("zoko") {
-        "https://zokoanime.video/".to_string()
-    } else {
-        "https://hianime.at/".to_string()
-    };
+    let effective_referer = resolve_referer(&url, params.referer.as_deref());
 
     // High performance HTTP/2 streaming via PROXY_CLIENT
     let mut req = PROXY_CLIENT
@@ -169,15 +162,14 @@ pub async fn proxy_video_handler(
         // Stream video/audio chunks directly to client
         let mut headers = HeaderMap::new();
         headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*".parse().unwrap());
-        if url.contains(".ts") || url.contains(".mp4") || url.contains(".m4s") {
+        if url.contains(".ts") || url.contains(".m4s") {
             headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
+        } else if url.contains(".mp4") {
+            headers.insert(header::CONTENT_TYPE, "video/mp4".parse().unwrap());
         } else if let Some(ct) = upstream.headers().get(header::CONTENT_TYPE) {
             let ct_str = ct.to_str().unwrap_or("");
-            if ct_str.contains("image/") {
-                headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
-            } else {
-                headers.insert(header::CONTENT_TYPE, ct.clone());
-            }
+            let ct_val = if ct_str.contains("image/") { "video/mp2t".parse().unwrap() } else { ct.clone() };
+            headers.insert(header::CONTENT_TYPE, ct_val);
         } else {
             headers.insert(header::CONTENT_TYPE, "video/mp2t".parse().unwrap());
         }
@@ -239,11 +231,17 @@ pub fn parse_hls_variants(body: &str) -> Vec<VideoVariant> {
     variants
 }
 
+pub fn resolve_referer(url: &str, referer: Option<&str>) -> String {
+    if let Some(r) = referer.filter(|s| !s.is_empty()) { return r.to_string(); }
+    if url.contains("drama") || url.contains("zoko") { "https://zokoanime.video/".into() }
+    else if url.contains("otakudesu") || url.contains("desustream") { "https://otakudesu.blog/".into() }
+    else if url.contains("mp4upload") { "https://www.mp4upload.com/".into() }
+    else { "https://hianime.at/".into() }
+}
+
 pub async fn fetch_hls_text(url: &str, referer: Option<&str>) -> Result<String, anyhow::Error> {
-    crate::net::validator::is_safe_remote_url(url)
-        .map_err(|e| anyhow::anyhow!("Disallowed HLS target: {}", e))?;
-    let fallback = if url.contains("drama") || url.contains("zoko") { "https://zokoanime.video/" } else { "https://hianime.at/" };
-    let eff_ref = referer.unwrap_or(fallback);
+    crate::net::validator::is_safe_remote_url(url).map_err(|e| anyhow::anyhow!("Disallowed HLS target: {}", e))?;
+    let eff_ref = resolve_referer(url, referer);
     let text = PROXY_CLIENT.get(url).header("User-Agent", USER_AGENT).header("Referer", eff_ref).send().await?.text().await?;
     Ok(text)
 }

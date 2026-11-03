@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.7"
+        "0.3.8"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,25 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.8",
+                versionName = "0.3.8",
+                title = "Miru Android v0.3.8 (Otakudesu & AniChan Provider Stream Fix)",
+                body = """
+                    ### Miru Android v0.3.8
+
+                    #### 🎬 Perbaikan Pemutaran Stream Non-HiAnime (Otakudesu & AniChan):
+                    - **Pembaruan Domain Aktif Otakudesu:** Mengalihkan domain dari `otakudesu.cloud` (diblokir Internet Positif) ke domain aktif `otakudesu.blog`.
+                    - **Dekoder Stream & Dean Edwards Unpacker:** Menambahkan modul extractor cerdas untuk membongkar script terkompresi `p,a,c,k` (Vidhide/Streamwish) dan resolving AJAX nonce WordPress (`admin-ajax.php`) untuk cermin DesuStream, MP4Upload, dan Archive.org.
+                    - **Koreksi Header & MIME Type Rust Proxy:** Memperbaiki proxy video daemon Rust agar meneruskan upstream `Referer` dan `Origin` yang valid untuk mencegah HTTP 403 Forbidden, serta melayani `video/mp4` asli alih-alih `video/mp2t`.
+                    - **Dukungan Format Fleksibel ExoPlayer:** Memperbaiki inisialisasi MediaItem di Android agar otomatis mendeteksi dan memutar progressive MP4 maupun HLS M3U8 tanpa error `UnrecognizedInputFormatException`.
+                    - **Pesan Error Informatif AniChan:** Menambahkan diagnostik fail-fast yang jelas saat server upstream AniChan sedang offline atau tidak dapat dijangkau.
+                """.trimIndent(),
+                publishedAt = "2026-11-03",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.8/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.7",
                 versionName = "0.3.7",

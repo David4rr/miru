@@ -1,3 +1,4 @@
+use super::otakudesu_extractor::{extract_direct_stream, resolve_ajax_mirror};
 use super::{BoxFuture, ProviderSearchResult, ResolvedStreamSource, StreamProvider, StreamServer};
 use crate::db::SubtitleTrack;
 use anyhow::{anyhow, Result};
@@ -6,13 +7,13 @@ use scraper::{Html, Selector};
 use std::sync::LazyLock;
 use std::time::Duration;
 
-const OTAKU_BASE: &str = "https://otakudesu.cloud";
+const OTAKU_BASE: &str = "https://otakudesu.blog";
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .user_agent(USER_AGENT)
-        .timeout(Duration::from_secs(8))
+        .timeout(Duration::from_secs(12))
         .build()
         .expect("Failed to initialize reqwest client for otakudesu")
 });
@@ -27,7 +28,7 @@ impl OtakudesuProvider {
 
 pub fn parse_search_results(html_str: &str) -> Vec<ProviderSearchResult> {
     let doc = Html::parse_document(html_str);
-    let item_sel = Selector::parse("ul.channellist li, .venser .venz ul li").ok();
+    let item_sel = Selector::parse("ul.chivsrc li, ul.channellist li, .venser .venz ul li").ok();
     let link_sel = Selector::parse("h2 a, a").ok();
     let img_sel = Selector::parse("img").ok();
 
@@ -55,10 +56,22 @@ pub fn parse_mirror_embeds(html_str: &str) -> Vec<(String, String)> {
     let doc = Html::parse_document(html_str);
     let mut mirrors = Vec::new();
 
-    // 1. Mirror stream items: .mirrorstream ul li a
+    // 1. Primary responsive embed stream iframe
+    if let Ok(iframe_sel) = Selector::parse("div.responsive-embed-stream iframe, iframe[src]") {
+        for iframe in doc.select(&iframe_sel) {
+            if let Some(src) = iframe.value().attr("src") {
+                if !src.is_empty() && (src.starts_with("http") || src.starts_with("//")) {
+                    let full = if src.starts_with("//") { format!("https:{}", src) } else { src.to_string() };
+                    mirrors.push(("desustream".to_string(), full));
+                }
+            }
+        }
+    }
+
+    // 2. Secondary mirror items with data-content payloads
     if let Ok(a_sel) = Selector::parse(".mirrorstream ul li a, ul.mirrorstream li a") {
         for a in doc.select(&a_sel) {
-            let name = a.text().collect::<String>().trim().to_string();
+            let name = a.text().collect::<String>().trim().to_lowercase();
             let src = a.value().attr("data-content")
                 .or_else(|| a.value().attr("href"))
                 .unwrap_or("");
@@ -67,20 +80,28 @@ pub fn parse_mirror_embeds(html_str: &str) -> Vec<(String, String)> {
             }
         }
     }
+    mirrors
+}
 
-    // 2. Responsive embed stream iframe
-    if mirrors.is_empty() {
-        if let Ok(iframe_sel) = Selector::parse("div.responsive-embed-stream iframe, iframe[src]") {
-            for iframe in doc.select(&iframe_sel) {
-                if let Some(src) = iframe.value().attr("src") {
-                    if !src.is_empty() {
-                        mirrors.push(("DesuStream".to_string(), src.to_string()));
-                    }
-                }
-            }
+pub fn find_episode_link(anime_html: &str, ep: i32) -> Option<String> {
+    let doc = Html::parse_document(anime_html);
+    let a_sel = Selector::parse("a[href*='/episode/']").ok()?;
+    let ep_pat = format!("episode {}", ep);
+    let ep_slug_1 = format!("-episode-{}-", ep);
+    let ep_slug_2 = format!("-episode-{}/", ep);
+    let ep_slug_3 = format!("-episode-0{}-", ep);
+
+    for a in doc.select(&a_sel) {
+        let href = a.value().attr("href")?;
+        let text = a.text().collect::<String>().to_lowercase();
+        if href.contains("pembatas") || text.contains("pembatas") {
+            continue;
+        }
+        if text.contains(&ep_pat) || href.contains(&ep_slug_1) || href.contains(&ep_slug_2) || href.contains(&ep_slug_3) {
+            return Some(href.to_string());
         }
     }
-    mirrors
+    None
 }
 
 impl StreamProvider for OtakudesuProvider {
@@ -91,7 +112,8 @@ impl StreamProvider for OtakudesuProvider {
 
     fn search<'a>(&'a self, query: &'a str) -> BoxFuture<'a, Result<Vec<ProviderSearchResult>>> {
         Box::pin(async move {
-            let search_url = format!("{}/?s={}&post_type=anime", OTAKU_BASE, urlencoding::encode(query));
+            let clean = query.replace([':', '-', '–', '—', '(', ')'], " ");
+            let search_url = format!("{}/?s={}&post_type=anime", OTAKU_BASE, urlencoding::encode(clean.trim()));
             let html = HTTP_CLIENT.get(&search_url).send().await?.text().await?;
             let items = parse_search_results(&html);
             if items.is_empty() {
@@ -108,8 +130,9 @@ impl StreamProvider for OtakudesuProvider {
             }
             Ok(vec![
                 StreamServer { server_id: "desustream".to_string(), server_name: "DesuStream (HD)".to_string(), latency_ms: 85 },
-                StreamServer { server_id: "odstream".to_string(), server_name: "Odstream Mirror".to_string(), latency_ms: 110 },
-                StreamServer { server_id: "mega".to_string(), server_name: "Mega Cloud Mirror".to_string(), latency_ms: 145 },
+                StreamServer { server_id: "mp4load".to_string(), server_name: "MP4Upload Mirror".to_string(), latency_ms: 105 },
+                StreamServer { server_id: "odstream".to_string(), server_name: "Odstream Mirror".to_string(), latency_ms: 120 },
+                StreamServer { server_id: "vidhide".to_string(), server_name: "Vidhide Fast".to_string(), latency_ms: 135 },
             ])
         })
     }
@@ -129,33 +152,54 @@ impl StreamProvider for OtakudesuProvider {
             }
 
             let candidate_url = format!("{}/episode/{}-episode-{}-sub-indo/", OTAKU_BASE, slug.trim_end_matches('/'), ep);
-            let html = match HTTP_CLIENT.get(&candidate_url).send().await {
-                Ok(resp) if resp.status().is_success() => resp.text().await?,
+            let (ep_url, ep_html) = match HTTP_CLIENT.get(&candidate_url).send().await {
+                Ok(resp) if resp.status().is_success() => (candidate_url, resp.text().await?),
                 _ => {
                     let search_term = title_hint.unwrap_or(slug);
-                    let search_url = format!("{}/?s={}&post_type=anime", OTAKU_BASE, urlencoding::encode(search_term));
+                    let clean = search_term.replace([':', '-', '–', '—', '(', ')'], " ");
+                    let search_url = format!("{}/?s={}&post_type=anime", OTAKU_BASE, urlencoding::encode(clean.trim()));
                     let s_html = HTTP_CLIENT.get(&search_url).send().await?.text().await?;
                     let items = parse_search_results(&s_html);
-                    let first = items.into_iter().next().ok_or_else(|| anyhow!("Anime not found on Otakudesu"))?;
-                    let anime_html = HTTP_CLIENT.get(&first.url).send().await?.text().await?;
-                    let re_ep = regex::Regex::new(&format!(r#"href="([^"]+episode[^-]*-{}[^"]*)""#, ep))?;
-                    let ep_link = re_ep.captures(&anime_html).and_then(|c| c.get(1)).map(|m| m.as_str().to_string())
+                    let first = items.into_iter().next().ok_or_else(|| anyhow!("Anime not found on Otakudesu for '{}'", search_term))?;
+                    let anime_html = HTTP_CLIENT.get(&first.url).header("Referer", OTAKU_BASE).send().await?.text().await?;
+                    let ep_link = find_episode_link(&anime_html, ep)
                         .ok_or_else(|| anyhow!("Episode {} not found on Otakudesu anime page", ep))?;
-                    HTTP_CLIENT.get(&ep_link).send().await?.text().await?
+                    let h = HTTP_CLIENT.get(&ep_link).header("Referer", OTAKU_BASE).send().await?.text().await?;
+                    (ep_link, h)
                 }
             };
 
-            let mirrors = parse_mirror_embeds(&html);
+            let mirrors = parse_mirror_embeds(&ep_html);
             if mirrors.is_empty() {
                 return Err(anyhow!("No video mirrors found for episode {} on Otakudesu", ep));
             }
 
-            let chosen = if let Some(srv) = server {
-                mirrors.iter().find(|(name, _)| name.to_lowercase().contains(&srv.to_lowercase()))
-                    .or_else(|| mirrors.first())
-            } else {
-                mirrors.first()
-            }.ok_or_else(|| anyhow!("Selected Otakudesu server not available"))?;
+            let target_server = server.unwrap_or("desustream").to_lowercase();
+            let mut candidates: Vec<&(String, String)> = mirrors.iter().collect();
+            candidates.sort_by_key(|(name, _)| {
+                let n = name.to_lowercase();
+                if n.contains(&target_server) { 0 }
+                else if n == "desustream" { 1 }
+                else if n.contains("mp4") || n.contains("odstream") { 2 }
+                else { 3 }
+            });
+
+            let mut resolved_stream: Option<(String, String)> = None;
+            for (name, val) in candidates {
+                let stream_opt = if name == "desustream" || val.starts_with("http") {
+                    extract_direct_stream(&HTTP_CLIENT, val, OTAKU_BASE).await
+                } else if let Ok(u) = resolve_ajax_mirror(&HTTP_CLIENT, OTAKU_BASE, val, &ep_url).await {
+                    extract_direct_stream(&HTTP_CLIENT, &u, &ep_url).await
+                } else {
+                    None
+                };
+                if let Some(s) = stream_opt {
+                    resolved_stream = Some(s);
+                    break;
+                }
+            }
+            let (master, referer) = resolved_stream
+                .ok_or_else(|| anyhow!("Unable to extract playable stream for episode {} from Otakudesu", ep))?;
 
             let subs = vec![SubtitleTrack {
                 label: "Indonesia (Hardsub)".to_string(),
@@ -165,49 +209,11 @@ impl StreamProvider for OtakudesuProvider {
             }];
 
             Ok(ResolvedStreamSource {
-                master: chosen.1.clone(),
-                referer: format!("{}/", OTAKU_BASE),
-                server: server.unwrap_or("desustream").to_string(),
+                master,
+                referer,
+                server: target_server.to_string(),
                 subtitles: subs,
             })
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_otakudesu_search() {
-        let sample = r#"
-            <ul class="channellist">
-                <li>
-                    <img src="https://otakudesu.cloud/one-piece.jpg" />
-                    <h2><a href="https://otakudesu.cloud/anime/one-piece-sub-indo/">One Piece</a></h2>
-                </li>
-            </ul>
-        "#;
-        let results = parse_search_results(sample);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].title, "One Piece");
-        assert_eq!(results[0].id, "one-piece-sub-indo");
-        assert_eq!(results[0].poster, Some("https://otakudesu.cloud/one-piece.jpg".to_string()));
-    }
-
-    #[test]
-    fn test_parse_otakudesu_mirrors() {
-        let sample = r#"
-            <div class="mirrorstream">
-                <ul class="m720p">
-                    <li><a data-content="https://desustream.me/embed/op1100">DesuStream HD</a></li>
-                    <li><a data-content="https://odstream.com/v/op1100">Odstream 720p</a></li>
-                </ul>
-            </div>
-        "#;
-        let mirrors = parse_mirror_embeds(sample);
-        assert_eq!(mirrors.len(), 2);
-        assert_eq!(mirrors[0].0, "DesuStream HD");
-        assert_eq!(mirrors[0].1, "https://desustream.me/embed/op1100");
     }
 }

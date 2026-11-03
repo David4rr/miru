@@ -120,7 +120,9 @@ impl StreamProvider for AniChanProvider {
     fn search<'a>(&'a self, query: &'a str) -> BoxFuture<'a, Result<Vec<ProviderSearchResult>>> {
         Box::pin(async move {
             let search_url = format!("{}/?s={}", ANICHAN_BASE, urlencoding::encode(query));
-            let html = HTTP_CLIENT.get(&search_url).send().await?.text().await?;
+            let resp = HTTP_CLIENT.get(&search_url).send().await
+                .map_err(|e| anyhow!("AniChan upstream ({}) is unreachable: {}. Please use Otakudesu or HiAnime.", ANICHAN_BASE, e))?;
+            let html = resp.text().await?;
             let items = parse_search_results(&html);
             if items.is_empty() {
                 return Err(anyhow!("No results found on AniChan for '{}'", query));
@@ -164,13 +166,14 @@ impl StreamProvider for AniChanProvider {
                 _ => {
                     let search_term = title_hint.unwrap_or(slug);
                     let search_url = format!("{}/?s={}+episode+{}", ANICHAN_BASE, urlencoding::encode(search_term), ep);
-                    let s_html = HTTP_CLIENT.get(&search_url).send().await?.text().await?;
+                    let s_resp = HTTP_CLIENT.get(&search_url).send().await
+                        .map_err(|e| anyhow!("AniChan upstream ({}) is unreachable: {}. Please use Otakudesu or HiAnime.", ANICHAN_BASE, e))?;
+                    let s_html = s_resp.text().await?;
                     let items = parse_search_results(&s_html);
                     let first = items.into_iter().next().ok_or_else(|| anyhow!("Episode {} not found on AniChan", ep))?;
                     HTTP_CLIENT.get(&first.url).send().await?.text().await?
                 }
             };
-
             let embeds = parse_episode_embeds(&html);
             if embeds.is_empty() {
                 return Err(anyhow!("No stream mirrors found for episode {} on AniChan", ep));

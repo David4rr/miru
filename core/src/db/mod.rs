@@ -149,7 +149,7 @@ impl Database {
              INSERT OR IGNORE INTO stream_providers (id, name, base_url, is_enabled, priority) VALUES
              ('hianime', 'HiAnime (Global)', 'https://hianime.at', 1, 0),
              ('anichan', 'AniChan (Indonesia)', 'https://anichan.net', 1, 1),
-             ('otakudesu', 'Otakudesu (Indonesia)', 'https://otakudesu.cloud', 1, 2);",
+             ('otakudesu', 'Otakudesu (Indonesia)', 'https://otakudesu.blog', 1, 2);",
         )?;
 
         Ok(Self {

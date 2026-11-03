@@ -48,8 +48,7 @@ suspend fun prepareMediaStream(
             onSuccess(res)
             val mediaItemBuilder = MediaItem.Builder()
                 .setUri(res.proxiedMasterUrl)
-                .setMimeType(MimeTypes.APPLICATION_M3U8)
-
+            configureStreamMimeType(mediaItemBuilder, res.master.ifBlank { res.proxiedMasterUrl })
             val defaultSub = res.subtitles.firstOrNull { it.default } ?: res.subtitles.firstOrNull()
             if (defaultSub != null && defaultSub.url.isNotBlank()) {
                 val subConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(defaultSub.url))
@@ -81,8 +80,7 @@ fun switchSubtitleTrack(
     val isPlaying = exoPlayer.isPlaying
     val mediaItemBuilder = MediaItem.Builder()
         .setUri(resolvedStream.proxiedMasterUrl)
-        .setMimeType(MimeTypes.APPLICATION_M3U8)
-
+    configureStreamMimeType(mediaItemBuilder, resolvedStream.master.ifBlank { resolvedStream.proxiedMasterUrl })
     if (selectedSub != null && selectedSub.url.isNotBlank()) {
         val subConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(selectedSub.url))
             .setMimeType(MimeTypes.TEXT_VTT)
@@ -96,6 +94,15 @@ fun switchSubtitleTrack(
     exoPlayer.setMediaItem(mediaItemBuilder.build(), currentPosition)
     if (isPlaying) {
         exoPlayer.play()
+    }
+}
+
+private fun configureStreamMimeType(builder: MediaItem.Builder, streamUrl: String) {
+    val lower = streamUrl.lowercase()
+    if (lower.contains(".m3u8") || lower.contains("/master") || lower.contains("/manifest")) {
+        builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+    } else if (lower.contains(".mp4")) {
+        builder.setMimeType(MimeTypes.APPLICATION_MP4)
     }
 }
 
