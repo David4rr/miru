@@ -60,6 +60,7 @@ suspend fun prepareMediaStream(
                 mediaItemBuilder.setSubtitleConfigurations(listOf(subConfig))
             }
             exoPlayer.setMediaItem(mediaItemBuilder.build())
+            exoPlayer.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
             exoPlayer.prepare()
             if (resumePositionMs != null && resumePositionMs > 5_000L) {
                 exoPlayer.seekTo(resumePositionMs)

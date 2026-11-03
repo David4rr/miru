@@ -12,8 +12,8 @@ android {
         applicationId = "id.miru.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 37
-        versionName = "0.3.10"
+        versionCode = 38
+        versionName = "0.3.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -100,4 +100,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.androidx.ui.tooling)
+    testImplementation("junit:junit:4.13.2")
 }

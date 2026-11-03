@@ -25,7 +25,7 @@ object UpdateManager {
     val currentVersion: String = try {
         BuildConfig.VERSION_NAME
     } catch (_: Exception) {
-        "0.3.10"
+        "0.3.11"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -217,6 +217,24 @@ object UpdateManager {
 
     fun getEmbeddedChangelogs(): List<AppRelease> {
         return listOf(
+            AppRelease(
+                tagName = "v0.3.11",
+                versionName = "0.3.11",
+                title = "Miru Android v0.3.11 (All-Edges Adaptive Green Line Elimination)",
+                body = """
+                    ### Miru Android v0.3.11
+
+                    #### 🟩 Eliminasi Tuntas Garis Hijau di Sisi Kanan & Seluruh Tepi Layar:
+                    - **Penyebab Teknis Sisi Kanan:** Sama halnya dengan sisi bawah, standar kompresi video mengalokasikan piksel dalam macroblock kelipatan 16. Resolusi non-standar (misalnya 480p dengan lebar 854 piksel memiliki 10 piksel padding di kanan; rip 720p dengan lebar 1364 memiliki 12 piksel padding di kanan). Ruang warna YUV yang belum terisi di sisi kanan diterjemahkan sebagai garis hijau neon.
+                    - **Modul Adaptif `VideoEdgeCropHelper`:** Menghitung secara dinamis fraksi padding horizontal dan vertikal berbasis resolusi video aktual (`videoSize.width % 16` dan `videoSize.height % 16`), menerapkan matriks transform presisi adaptif (1.010f hingga 1.038f) yang secara otomatis menutupi padding di tepi kanan dan bawah.
+                    - **Observer Ukuran Video Reaktif:** Menghubungkan listener `onVideoSizeChanged` ExoPlayer secara reaktif ke Jetpack Compose, sehingga penyesuaian tepi langsung aktif saat pergantian resolusi stream tanpa perlu restart.
+                    - **OLED Black Edge Masking:** Menambahkan border mikro OLED hitam pekat di sekeliling container video dan latar hitam murni untuk memastikan tidak ada kebocoran piksel di layar AMOLED.
+                """.trimIndent(),
+                publishedAt = "2026-11-03",
+                downloadUrl = "https://github.com/David4rr/miru/releases/download/v0.3.11/app-release.apk",
+                apkSize = 39200000L,
+                isNewer = false
+            ),
             AppRelease(
                 tagName = "v0.3.10",
                 versionName = "0.3.10",
